@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Repeat It</title>
+  <script>
+    const DEVICES = __REPEAT_IT_DEVICE_NAMES__;
+    const ACTIVE_DEVICES = new Set(__REPEAT_IT_ACTIVE_DEVICE_NAMES__);
+
+    const isWebKitMessageHandlerAvailable = window.webkit &&
+      window.webkit.messageHandlers &&
+      window.webkit.messageHandlers.live;
+    const isWebView2 = window.chrome && window.chrome.webview;
+
+    function sendMessage(message) {
+      if (isWebKitMessageHandlerAvailable) {
+        window.webkit.messageHandlers.live.postMessage(message);
+      } else if (isWebView2) {
+        window.chrome.webview.postMessage(message);
+      }
+    }
+
+    function closeWithResult(result) {
+      sendMessage({
+        method: "close_and_send",
+        params: [JSON.stringify(result)],
+      });
+    }
+
+    let pendingAction = null;
+
+    function confirmAction(action, deviceName) {
+      pendingAction = { action, deviceName };
+
+      document.getElementById("confirm-title").textContent = action === "add"
+        ? `Add ${deviceName}?`
+        : `Delete all ${deviceName}?`;
+      document.getElementById("confirm-copy").textContent = action === "add"
+        ? `This will add ${deviceName} to every track.`
+        : `This will delete every ${deviceName} from every track.`;
+      document.getElementById("confirm-yes").textContent = action === "add"
+        ? "Add to all"
+        : "Delete all";
+      document.getElementById("confirm-yes").className = action === "add"
+        ? "confirm-button"
+        : "confirm-button danger";
+      document.getElementById("confirm-panel").hidden = false;
+    }
+
+    function cancelPendingAction() {
+      pendingAction = null;
+      document.getElementById("confirm-panel").hidden = true;
+    }
+
+    function runPendingAction() {
+      if (!pendingAction) {
+        return;
+      }
+
+      closeWithResult(pendingAction);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const grid = document.getElementById("device-grid");
+
+      for (const deviceName of DEVICES) {
+        const tile = document.createElement("div");
+        tile.className = "device-tile";
+
+        const addButton = document.createElement("button");
+        addButton.className = ACTIVE_DEVICES.has(deviceName)
+          ? "device-button active"
+          : "device-button";
+        addButton.type = "button";
+        addButton.textContent = deviceName;
+        addButton.addEventListener("click", () => confirmAction("add", deviceName));
+
+        const deleteButton = document.createElement("button");
+        deleteButton.className = "delete-button";
+        deleteButton.type = "button";
+        deleteButton.textContent = "Delete all";
+        deleteButton.addEventListener("click", () => confirmAction("delete", deviceName));
+
+        tile.append(addButton, deleteButton);
+        grid.appendChild(tile);
+      }
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          if (pendingAction) {
+            cancelPendingAction();
+          } else {
+            closeWithResult({ action: "close" });
+          }
+        }
+      });
+    });
+  </script>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    * {
+      margin: 0;
+    }
+
+    :root {
+      --live-bg: hsl(0, 0%, 21%);
+      --live-panel: hsl(0, 0%, 26%);
+      --live-control: hsl(0, 0%, 16%);
+      --live-control-hover: hsl(0, 0%, 30%);
+      --live-input: hsl(0, 0%, 12%);
+      --live-border: hsl(0, 0%, 7%);
+      --live-text: hsl(0, 0%, 83%);
+      --live-muted: hsl(0, 0%, 58%);
+      --live-accent: hsl(31, 100%, 58%);
+      --live-accent-pressed: hsl(31, 100%, 67%);
+      --live-active: hsl(111, 53%, 66%);
+      --live-active-hover: hsl(111, 45%, 58%);
+      --live-active-text: hsl(120, 18%, 10%);
+      --live-danger: hsl(0, 72%, 48%);
+      --live-danger-hover: hsl(0, 67%, 39%);
+    }
+
+    html {
+      height: 100%;
+      background: var(--live-bg);
+      color: var(--live-text);
+      font-family: "AbletonSansSmall", Arial, sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      min-height: 100%;
+      padding: 16px;
+      background: var(--live-bg);
+    }
+
+    .shell {
+      display: flex;
+      min-height: calc(100vh - 32px);
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--live-border);
+      padding-bottom: 10px;
+    }
+
+    h1 {
+      font-size: 18px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .track-count {
+      color: var(--live-muted);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .device-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .device-tile {
+      display: grid;
+      grid-template-rows: 42px 22px;
+      min-width: 0;
+    }
+
+    .device-button,
+    .delete-button,
+    .cancel-button {
+      border: 1px solid var(--live-border);
+      background: var(--live-control);
+      color: var(--live-text);
+      cursor: pointer;
+      font: inherit;
+      line-height: 1.2;
+      padding: 0 12px;
+      text-align: left;
+    }
+
+    .device-button:hover,
+    .delete-button:hover,
+    .cancel-button:hover {
+      background: var(--live-control-hover);
+    }
+
+    .device-button:active {
+      background: var(--live-accent);
+      color: var(--live-input);
+    }
+
+    .device-button.active {
+      background: var(--live-active);
+      color: var(--live-active-text);
+    }
+
+    .device-button.active:hover {
+      background: var(--live-active-hover);
+      color: var(--live-active-text);
+    }
+
+    .delete-button {
+      min-height: 22px;
+      border-top: 0;
+      background: var(--live-input);
+      color: var(--live-muted);
+      font-size: 10.5px;
+      text-align: center;
+    }
+
+    .delete-button:hover {
+      background: var(--live-danger-hover);
+      color: var(--live-text);
+    }
+
+    .delete-button:active {
+      background: var(--live-danger);
+      color: var(--live-text);
+    }
+
+    .device-button:focus,
+    .delete-button:focus,
+    .cancel-button:focus {
+      outline: 2px solid var(--live-accent-pressed);
+      outline-offset: 1px;
+    }
+
+    .footer {
+      display: flex;
+      margin-top: auto;
+      justify-content: flex-end;
+      border-top: 1px solid var(--live-border);
+      padding-top: 10px;
+    }
+
+    .cancel-button {
+      min-height: 28px;
+      text-align: center;
+    }
+
+    .confirm-panel {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: hsla(0, 0%, 8%, 0.72);
+      padding: 18px;
+    }
+
+    .confirm-panel[hidden] {
+      display: none;
+    }
+
+    .confirm-box {
+      width: min(100%, 300px);
+      border: 1px solid var(--live-border);
+      background: var(--live-panel);
+      padding: 14px;
+    }
+
+    .confirm-box h2 {
+      font-size: 15px;
+      letter-spacing: 0;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+
+    .confirm-box p {
+      color: var(--live-muted);
+      font-size: 11.5px;
+      line-height: 1.35;
+      margin-bottom: 14px;
+    }
+
+    .confirm-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .confirm-button {
+      min-height: 28px;
+      border: 1px solid var(--live-border);
+      background: var(--live-accent);
+      color: var(--live-input);
+      cursor: pointer;
+      font: inherit;
+      padding: 0 12px;
+    }
+
+    .confirm-button.secondary {
+      background: var(--live-control);
+      color: var(--live-text);
+    }
+
+    .confirm-button.danger {
+      background: var(--live-danger);
+      color: var(--live-text);
+    }
+  </style>
+</head>
+
+<body>
+  <main class="shell">
+    <header class="header">
+      <h1>Repeat It</h1>
+      <div class="track-count">All tracks</div>
+    </header>
+
+    <section class="device-grid" id="device-grid" aria-label="Devices"></section>
+
+    <footer class="footer">
+      <button class="cancel-button" type="button" onclick="closeWithResult({ action: 'close' })">Close</button>
+    </footer>
+
+    <section class="confirm-panel" id="confirm-panel" hidden>
+      <div class="confirm-box">
+        <h2 id="confirm-title"></h2>
+        <p id="confirm-copy"></p>
+        <div class="confirm-actions">
+          <button class="confirm-button secondary" type="button" onclick="cancelPendingAction()">Cancel</button>
+          <button class="confirm-button" id="confirm-yes" type="button" onclick="runPendingAction()">Confirm</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+
+</html>

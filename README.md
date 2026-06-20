@@ -1,6 +1,6 @@
 # Repeat It
 
-An Ableton Live Extension beta experiment for adding one effect to every track at once.
+ An Ableton Live Extension for adding one effect to every track at once.
 
 ## What it does
 

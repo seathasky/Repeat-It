@@ -8,6 +8,14 @@ import repeatItInterface from "./interface.html";
 
 const API_VERSION = "1.0.0";
 const OPEN_COMMAND_ID = "repeat-it.open";
+declare const __REPEAT_IT_BUILD_VERSION__: string;
+declare const process: { platform: string };
+declare function require(moduleName: string): {
+  execFile: (file: string, args: string[], callback?: (error: unknown) => void) => void;
+};
+const EXTENSION_VERSION = __REPEAT_IT_BUILD_VERSION__;
+const UPDATE_CHECK_URL = "https://api.github.com/repos/seathasky/Repeat-It/releases/latest";
+const RELEASES_URL = "https://github.com/seathasky/Repeat-It/releases";
 
 // Add any native Live device or third-party plug-in names you want exposed here.
 // Names must match the way Live's browser/extension host resolves the device.
@@ -25,10 +33,12 @@ const DEVICE_NAMES = [
 
 type DeviceName = (typeof DEVICE_NAMES)[number];
 type Context = ReturnType<typeof initialize>;
-type RepeatItAction = "add" | "delete";
 type RepeatItSelection = {
-  action: RepeatItAction;
+  action: "add" | "delete";
   deviceName: DeviceName;
+} | {
+  action: "openUrl";
+  url: string;
 };
 
 export async function activate(activation: ActivationContext) {
@@ -67,6 +77,8 @@ async function openRepeatIt(context: Context) {
       shouldStayOpen = false;
     } else if (selection.action === "add") {
       await insertDeviceOnEveryTrack(context, selection.deviceName);
+    } else if (selection.action === "openUrl") {
+      await openExternalUrl(selection.url);
     } else {
       await deleteDeviceFromEveryTrack(context, selection.deviceName);
     }
@@ -76,7 +88,10 @@ async function openRepeatIt(context: Context) {
 async function showRepeatItDialog(context: Context) {
   const modalHtml = repeatItInterface
     .replace("__REPEAT_IT_DEVICE_NAMES__", JSON.stringify(DEVICE_NAMES))
-    .replace("__REPEAT_IT_ACTIVE_DEVICE_NAMES__", JSON.stringify(getActiveDeviceNames(context)));
+    .replace("__REPEAT_IT_ACTIVE_DEVICE_NAMES__", JSON.stringify(getActiveDeviceNames(context)))
+    .replace("__REPEAT_IT_VERSION__", JSON.stringify(EXTENSION_VERSION))
+    .replace("__REPEAT_IT_UPDATE_CHECK_URL__", JSON.stringify(UPDATE_CHECK_URL))
+    .replace("__REPEAT_IT_RELEASES_URL__", JSON.stringify(RELEASES_URL));
   const result = await context.ui.showModalDialog(
     `data:text/html,${encodeURIComponent(modalHtml)}`,
     420,
@@ -170,17 +185,48 @@ async function deleteDeviceFromEveryTrack(context: Context, deviceName: DeviceNa
   );
 }
 
+async function openExternalUrl(url: string) {
+  const { execFile } = require("node:child_process");
+  const command = process.platform === "darwin"
+    ? "open"
+    : process.platform === "win32"
+      ? "cmd"
+      : "xdg-open";
+  const args = process.platform === "win32"
+    ? ["/c", "start", "", url]
+    : [url];
+
+  await new Promise<void>((resolve, reject) => {
+    execFile(command, args, (error) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
 function parseSelection(result: string): RepeatItSelection | null {
   try {
     const parsed = JSON.parse(result) as {
       action?: unknown;
       deviceName?: unknown;
+      url?: unknown;
     };
 
-    if (
-      parsed.action !== "add" &&
-      parsed.action !== "delete"
-    ) {
+    if (parsed.action === "openUrl") {
+      if (typeof parsed.url !== "string" || !parsed.url.startsWith("https://github.com/")) {
+        return null;
+      }
+
+      return {
+        action: "openUrl",
+        url: parsed.url,
+      };
+    }
+
+    if (parsed.action !== "add" && parsed.action !== "delete") {
       return null;
     }
 

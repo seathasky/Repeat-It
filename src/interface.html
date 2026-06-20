@@ -8,6 +8,9 @@
   <script>
     const DEVICES = __REPEAT_IT_DEVICE_NAMES__;
     const ACTIVE_DEVICES = new Set(__REPEAT_IT_ACTIVE_DEVICE_NAMES__);
+    const VERSION = __REPEAT_IT_VERSION__;
+    const UPDATE_CHECK_URL = __REPEAT_IT_UPDATE_CHECK_URL__;
+    const RELEASES_URL = __REPEAT_IT_RELEASES_URL__;
 
     const isWebKitMessageHandlerAvailable = window.webkit &&
       window.webkit.messageHandlers &&
@@ -29,6 +32,7 @@
       });
     }
 
+    let latestReleaseUrl = RELEASES_URL;
     let pendingAction = null;
 
     function confirmAction(action, deviceName) {
@@ -62,8 +66,90 @@
       closeWithResult(pendingAction);
     }
 
+    function openLatestRelease() {
+      closeWithResult({
+        action: "openUrl",
+        url: latestReleaseUrl || RELEASES_URL,
+      });
+    }
+
+    function normalizeVersion(version) {
+      return String(version)
+        .trim()
+        .replace(/^v/i, "")
+        .split(/[+-]/)[0]
+        .split(".")
+        .map((part) => Number.parseInt(part, 10) || 0);
+    }
+
+    function compareVersions(currentVersion, latestVersion) {
+      const currentParts = normalizeVersion(currentVersion);
+      const latestParts = normalizeVersion(latestVersion);
+      const length = Math.max(currentParts.length, latestParts.length);
+
+      for (let index = 0; index < length; index += 1) {
+        const currentPart = currentParts[index] || 0;
+        const latestPart = latestParts[index] || 0;
+
+        if (latestPart > currentPart) return 1;
+        if (latestPart < currentPart) return -1;
+      }
+
+      return 0;
+    }
+
+    async function checkForUpdates() {
+      const status = document.getElementById("update-status");
+      const button = document.getElementById("update-button");
+
+      if (!UPDATE_CHECK_URL) {
+        status.textContent = "Update checks are not configured yet.";
+        return;
+      }
+
+      status.textContent = "Checking...";
+      button.disabled = true;
+
+      try {
+        const response = await fetch(UPDATE_CHECK_URL, {
+          headers: { "Accept": "application/vnd.github+json" },
+        });
+
+        if (!response.ok) {
+          throw new Error(`GitHub returned ${response.status}`);
+        }
+
+        const release = await response.json();
+        const latestVersion = release.tag_name || release.name;
+
+        if (!latestVersion) {
+          throw new Error("No version was found in the latest release.");
+        }
+
+        const comparison = compareVersions(VERSION, latestVersion);
+
+        if (comparison > 0) {
+          latestReleaseUrl = release.html_url || RELEASES_URL;
+          status.innerHTML = `Update available: ${latestVersion} <button class="status-link" type="button" onclick="openLatestRelease()">Open in browser</button>`;
+          if (release.html_url) {
+            latestReleaseUrl = release.html_url;
+          }
+        } else if (comparison < 0) {
+          status.textContent = `Installed ${VERSION} is newer than GitHub ${latestVersion}.`;
+        } else {
+          status.textContent = `You are up to date (${VERSION}).`;
+        }
+      } catch (error) {
+        status.textContent = "Could not check for updates.";
+        console.error("Repeat It update check failed.", error);
+      } finally {
+        button.disabled = false;
+      }
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
       const grid = document.getElementById("device-grid");
+      document.getElementById("version").textContent = `v${VERSION}`;
 
       for (const deviceName of DEVICES) {
         const tile = document.createElement("div");
@@ -163,6 +249,19 @@
       letter-spacing: 0;
     }
 
+    .title-group {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .version {
+      color: var(--live-muted);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
     .track-count {
       color: var(--live-muted);
       font-size: 11px;
@@ -244,9 +343,57 @@
     .footer {
       display: flex;
       margin-top: auto;
+      align-items: flex-end;
       justify-content: flex-end;
+      gap: 12px;
       border-top: 1px solid var(--live-border);
       padding-top: 10px;
+    }
+
+    .update {
+      display: flex;
+      flex: 1;
+      min-width: 0;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
+
+    .update-button {
+      min-height: 28px;
+      border: 1px solid var(--live-border);
+      background: var(--live-control);
+      color: var(--live-text);
+      cursor: pointer;
+      font: inherit;
+      padding: 0 12px;
+      text-align: center;
+    }
+
+    .update-button:hover {
+      background: var(--live-control-hover);
+    }
+
+    .update-button:disabled {
+      cursor: default;
+      opacity: 0.55;
+    }
+
+    .update-status {
+      min-height: 14px;
+      color: var(--live-muted);
+      font-size: 10.5px;
+      line-height: 1.25;
+    }
+
+    .status-link {
+      border: 0;
+      background: transparent;
+      color: var(--live-accent-pressed);
+      cursor: pointer;
+      font: inherit;
+      padding: 0;
+      text-decoration: underline;
     }
 
     .cancel-button {
@@ -319,13 +466,20 @@
 <body>
   <main class="shell">
     <header class="header">
-      <h1>Repeat It</h1>
+      <div class="title-group">
+        <h1>Repeat It</h1>
+        <div class="version" id="version"></div>
+      </div>
       <div class="track-count">All tracks</div>
     </header>
 
     <section class="device-grid" id="device-grid" aria-label="Devices"></section>
 
     <footer class="footer">
+      <div class="update">
+        <button class="update-button" id="update-button" type="button" onclick="checkForUpdates()">Check for updates</button>
+        <div class="update-status" id="update-status"></div>
+      </div>
       <button class="cancel-button" type="button" onclick="closeWithResult({ action: 'close' })">Close</button>
     </footer>
 

@@ -10,6 +10,9 @@ await esbuild.build({
   bundle: true,
   format: "cjs",
   platform: "node",
+  define: {
+    __REPEAT_IT_BUILD_VERSION__: JSON.stringify(manifest.version),
+  },
   loader: {
     ".html": "text",
   },

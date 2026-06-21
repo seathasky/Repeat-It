@@ -2,7 +2,7 @@
 
  An Ableton Live Extension for adding one effect to every track at once.
 
-![Repeat It](https://i.imgur.com/tkeCCfg.png)
+<img src="https://i.imgur.com/tkeCCfg.png" alt="Repeat It" width="406">
 
 ## What it does
 

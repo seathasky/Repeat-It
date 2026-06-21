@@ -27,4 +27,4 @@ To run against Live:
 npm start
 ```
 
-or Download the compile ablx from releases.
+or Download the compiled ablx from releases.

@@ -12,8 +12,6 @@
 
 All Ableton FX devices included!
 
-To add third-party effects, edit `DEVICE_NAMES` in `src/extension.ts` and add the exact names Live resolves for those plug-ins. The public beta SDK documents `insertDevice` as native-only, but this project keeps the list open so we can test third-party names directly in Live.
-
 ## Setup
 
 ```sh

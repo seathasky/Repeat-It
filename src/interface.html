@@ -6,7 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Repeat It</title>
   <script>
-    const DEVICES = __REPEAT_IT_DEVICE_NAMES__;
+    const QUICK_DEVICES = __REPEAT_IT_QUICK_DEVICE_NAMES__;
+    const DROPDOWN_DEVICES = __REPEAT_IT_DROPDOWN_DEVICE_NAMES__;
+    const SELECTED_DROPDOWN_DEVICE = __REPEAT_IT_SELECTED_DROPDOWN_DEVICE__;
     const ACTIVE_DEVICES = new Set(__REPEAT_IT_ACTIVE_DEVICE_NAMES__);
     const VERSION = __REPEAT_IT_VERSION__;
     const UPDATE_CHECK_URL = __REPEAT_IT_UPDATE_CHECK_URL__;
@@ -35,6 +37,13 @@
     let latestReleaseUrl = RELEASES_URL;
     let pendingAction = null;
 
+    const UNSUPPORTED_DROPDOWN_DEVICES = new Set([
+      "Align Delay",
+      "Shaper",
+      "LFO",
+      "Envelope Follower",
+    ]);
+
     function confirmAction(action, deviceName) {
       pendingAction = { action, deviceName };
 
@@ -53,6 +62,24 @@
       document.getElementById("confirm-panel").hidden = false;
     }
 
+    function confirmRemoveAllAbletonFX() {
+      pendingAction = { action: "removeAll", confirmed: false };
+      document.getElementById("confirm-title").textContent = "REMOVE ALL ABLETON FX?";
+      document.getElementById("confirm-copy").textContent =
+        "This will delete every supported Ableton audio effect from every track.";
+      document.getElementById("confirm-yes").textContent = "Delete all";
+      document.getElementById("confirm-yes").className = "confirm-button danger";
+      document.getElementById("confirm-panel").hidden = false;
+    }
+
+    function confirmSelectedDevice(action) {
+      const deviceName = document.getElementById("device-select").value;
+
+      if (deviceName) {
+        confirmAction(action, deviceName);
+      }
+    }
+
     function cancelPendingAction() {
       pendingAction = null;
       document.getElementById("confirm-panel").hidden = true;
@@ -60,6 +87,15 @@
 
     function runPendingAction() {
       if (!pendingAction) {
+        return;
+      }
+
+      if (pendingAction.action === "removeAll" && !pendingAction.confirmed) {
+        pendingAction.confirmed = true;
+        document.getElementById("confirm-title").textContent = "ARE YOU SURE?";
+        document.getElementById("confirm-copy").textContent =
+          "This action will remove every supported Ableton audio effect from every track. This cannot be undone.";
+        document.getElementById("confirm-yes").textContent = "Yes, delete all";
         return;
       }
 
@@ -149,9 +185,10 @@
 
     document.addEventListener("DOMContentLoaded", () => {
       const grid = document.getElementById("device-grid");
+      const deviceSelect = document.getElementById("device-select");
       document.getElementById("version").textContent = `v${VERSION}`;
 
-      for (const deviceName of DEVICES) {
+      for (const deviceName of QUICK_DEVICES) {
         const tile = document.createElement("div");
         tile.className = "device-tile";
 
@@ -171,6 +208,27 @@
 
         tile.append(addButton, deleteButton);
         grid.appendChild(tile);
+      }
+
+      const orderedDropdownDevices = [
+        ...DROPDOWN_DEVICES.filter((deviceName) => !UNSUPPORTED_DROPDOWN_DEVICES.has(deviceName)),
+        ...DROPDOWN_DEVICES.filter((deviceName) => UNSUPPORTED_DROPDOWN_DEVICES.has(deviceName)),
+      ];
+
+      for (const deviceName of orderedDropdownDevices) {
+        const option = document.createElement("option");
+        option.value = deviceName;
+        option.textContent = UNSUPPORTED_DROPDOWN_DEVICES.has(deviceName)
+          ? `${deviceName} (M4L not supported)`
+          : deviceName;
+        if (UNSUPPORTED_DROPDOWN_DEVICES.has(deviceName)) {
+          option.disabled = true;
+        }
+        deviceSelect.appendChild(option);
+      }
+
+      if (DROPDOWN_DEVICES.includes(SELECTED_DROPDOWN_DEVICE)) {
+        deviceSelect.value = SELECTED_DROPDOWN_DEVICE;
       }
 
       document.addEventListener("keydown", (event) => {
@@ -222,16 +280,17 @@
     }
 
     body {
-      min-height: 100%;
-      padding: 16px;
+      height: 100%;
+      overflow: hidden;
+      padding: 14px;
       background: var(--live-bg);
     }
 
     .shell {
       display: flex;
-      min-height: calc(100vh - 32px);
+      min-height: calc(100vh - 28px);
       flex-direction: column;
-      gap: 12px;
+      gap: 9px;
     }
 
     .header {
@@ -240,7 +299,7 @@
       justify-content: space-between;
       gap: 12px;
       border-bottom: 1px solid var(--live-border);
-      padding-bottom: 10px;
+      padding-bottom: 8px;
     }
 
     h1 {
@@ -250,6 +309,13 @@
     }
 
     .title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .title-line {
       display: flex;
       align-items: baseline;
       gap: 8px;
@@ -262,26 +328,34 @@
       white-space: nowrap;
     }
 
-    .track-count {
+    .description {
       color: var(--live-muted);
       font-size: 11px;
-      white-space: nowrap;
+      line-height: 1.3;
+      font-weight: 600;
+    }
+
+    .section-title {
+      color: var(--live-muted);
+      font-size: 11px;
+      line-height: 1.2;
     }
 
     .device-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
+      gap: 8px;
     }
 
     .device-tile {
       display: grid;
-      grid-template-rows: 42px 22px;
+      grid-template-rows: 34px 18px;
       min-width: 0;
     }
 
     .device-button,
     .delete-button,
+    .dropdown-action,
     .cancel-button {
       border: 1px solid var(--live-border);
       background: var(--live-control);
@@ -289,12 +363,13 @@
       cursor: pointer;
       font: inherit;
       line-height: 1.2;
-      padding: 0 12px;
+      padding: 0 10px;
       text-align: left;
     }
 
     .device-button:hover,
     .delete-button:hover,
+    .dropdown-action:hover,
     .cancel-button:hover {
       background: var(--live-control-hover);
     }
@@ -315,11 +390,11 @@
     }
 
     .delete-button {
-      min-height: 22px;
+      min-height: 18px;
       border-top: 0;
       background: var(--live-input);
       color: var(--live-muted);
-      font-size: 10.5px;
+      font-size: 10px;
       text-align: center;
     }
 
@@ -333,8 +408,66 @@
       color: var(--live-text);
     }
 
+    .dropdown-panel {
+      display: grid;
+      gap: 6px;
+      border-top: 1px solid var(--live-border);
+      padding-top: 9px;
+    }
+
+    .device-select {
+      width: 100%;
+      min-height: 28px;
+      border: 1px solid var(--live-border);
+      background: var(--live-input);
+      color: var(--live-text);
+      font: inherit;
+      padding: 0 8px;
+    }
+
+    .dropdown-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .dropdown-action {
+      min-height: 28px;
+      text-align: center;
+    }
+
+    .dropdown-action.delete:hover {
+      background: var(--live-danger-hover);
+      color: var(--live-text);
+    }
+
+    .dropdown-action.delete:active {
+      background: var(--live-danger);
+      color: var(--live-text);
+    }
+
+    .device-select option:disabled {
+      color: var(--live-muted);
+    }
+
+    .remove-button {
+      min-height: 28px;
+      border: 1px solid var(--live-border);
+      background: var(--live-danger);
+      color: var(--live-text);
+      cursor: pointer;
+      font: inherit;
+      padding: 0 12px;
+    }
+
+    .remove-button:hover {
+      background: var(--live-danger-hover);
+    }
+
     .device-button:focus,
     .delete-button:focus,
+    .dropdown-action:focus,
+    .device-select:focus,
     .cancel-button:focus {
       outline: 2px solid var(--live-accent-pressed);
       outline-offset: 1px;
@@ -347,7 +480,27 @@
       justify-content: flex-end;
       gap: 12px;
       border-top: 1px solid var(--live-border);
-      padding-top: 10px;
+      padding-top: 8px;
+    }
+
+    .close-button {
+      min-height: 28px;
+      border: 1px solid var(--live-border);
+      background: var(--live-control);
+      color: var(--live-text);
+      cursor: pointer;
+      font: inherit;
+      padding: 0 12px;
+      align-self: start;
+    }
+
+    .header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--live-border);
+      padding-bottom: 8px;
     }
 
     .update {
@@ -467,22 +620,34 @@
   <main class="shell">
     <header class="header">
       <div class="title-group">
-        <h1>Repeat It</h1>
-        <div class="version" id="version"></div>
+        <div class="title-line">
+          <h1>Repeat It</h1>
+          <div class="version" id="version"></div>
+        </div>
+        <p class="description">Add or remove Live audio effects across every track at once.</p>
       </div>
-      <div class="track-count">All tracks</div>
+      <button class="close-button cancel-button" type="button" onclick="closeWithResult({ action: 'close' })">Close</button>
     </header>
 
+    <div class="section-title">Common effects/tools</div>
     <section class="device-grid" id="device-grid" aria-label="Devices"></section>
+
+    <section class="dropdown-panel" aria-label="More devices">
+      <div class="section-title">More effects/tools</div>
+      <select class="device-select" id="device-select"></select>
+      <div class="dropdown-actions">
+        <button class="dropdown-action" type="button" onclick="confirmSelectedDevice('add')">Add selected</button>
+        <button class="dropdown-action delete" type="button" onclick="confirmSelectedDevice('delete')">Delete selected</button>
+      </div>
+    </section>
 
     <footer class="footer">
       <div class="update">
         <button class="update-button" id="update-button" type="button" onclick="checkForUpdates()">Check for updates</button>
         <div class="update-status" id="update-status"></div>
       </div>
-      <button class="cancel-button" type="button" onclick="closeWithResult({ action: 'close' })">Close</button>
+      <button class="remove-button" type="button" onclick="confirmRemoveAllAbletonFX()">Remove all ableton fx</button>
     </footer>
-
     <section class="confirm-panel" id="confirm-panel" hidden>
       <div class="confirm-box">
         <h2 id="confirm-title"></h2>

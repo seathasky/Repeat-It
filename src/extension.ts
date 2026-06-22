@@ -1,7 +1,11 @@
 import {
+  DataModelObject,
+  Track,
   initialize,
   type ActivationContext,
+  type ArrangementSelection,
   type ContextMenuScope,
+  type Handle,
 } from "@ableton-extensions/sdk";
 
 import repeatItInterface from "./interface.html";
@@ -11,8 +15,17 @@ const OPEN_COMMAND_ID = "repeat-it.open";
 declare const __REPEAT_IT_BUILD_VERSION__: string;
 declare const __REPEAT_IT_LOGO_MARKUP__: string;
 declare const process: { platform: string };
-declare function require(moduleName: string): {
+declare function require(moduleName: "node:child_process"): {
   execFile: (file: string, args: string[], callback?: (error: unknown) => void) => void;
+};
+declare function require(moduleName: "node:fs"): {
+  existsSync: (path: string) => boolean;
+  mkdirSync: (path: string, options: { recursive: boolean }) => void;
+  readFileSync: (path: string, encoding: "utf8") => string;
+  writeFileSync: (path: string, data: string, encoding: "utf8") => void;
+};
+declare function require(moduleName: "node:path"): {
+  join: (...paths: string[]) => string;
 };
 const EXTENSION_VERSION = __REPEAT_IT_BUILD_VERSION__;
 const LOGO_MARKUP = __REPEAT_IT_LOGO_MARKUP__;
@@ -75,6 +88,11 @@ const DEVICE_NAMES = [...QUICK_DEVICE_NAMES, ...DROPDOWN_DEVICE_NAMES] as const;
 
 type DeviceName = (typeof DEVICE_NAMES)[number];
 type InsertPosition = "start" | "end";
+type TrackScope = "all" | "selected";
+type UserOptions = {
+  isDarkModeEnabled: boolean;
+  areTooltipsEnabled: boolean;
+};
 const MAX_FOR_LIVE_DEVICE_PATHS: Partial<Record<string, readonly string[]>> = {
   "Align Delay": [
     "/Applications/Ableton Live 12 Beta.app/Contents/App-Resources/Builtin/Devices/Audio Effects/Align Delay/Ableton Folder Info/Align Delay.amxd",
@@ -90,16 +108,35 @@ const MAX_FOR_LIVE_DEVICE_PATHS: Partial<Record<string, readonly string[]>> = {
   ],
 };
 type Context = ReturnType<typeof initialize>;
+type SongTrack = Context["application"]["song"]["tracks"][number];
 type RepeatItSelection = {
+  userOptions?: UserOptions | undefined;
+} & ({
   action: "add" | "delete";
   deviceName: DeviceName;
   insertPosition?: InsertPosition;
+  trackScope?: TrackScope;
 } | {
   action: "openUrl";
   url: string;
 } | {
   action: "removeAll";
+  insertPosition?: InsertPosition;
+  trackScope?: TrackScope;
+} | {
+  action: "close";
+  insertPosition?: InsertPosition;
+  trackScope?: TrackScope;
+});
+
+const DEFAULT_USER_OPTIONS: UserOptions = {
+  isDarkModeEnabled: true,
+  areTooltipsEnabled: true,
 };
+let lastInsertPosition: InsertPosition = "end";
+let lastTrackScope: TrackScope = "all";
+let hasRunSessionUpdateCheck = false;
+let userOptions: UserOptions = { ...DEFAULT_USER_OPTIONS };
 
 export async function activate(activation: ActivationContext) {
   const context = initialize(activation, API_VERSION);
@@ -112,9 +149,10 @@ export async function activate(activation: ActivationContext) {
   const registeredActions: Promise<() => Promise<void>>[] = [];
 
   console.log("Repeat It activated.");
+  userOptions = loadUserOptions(context);
 
-  context.commands.registerCommand(OPEN_COMMAND_ID, () => {
-    void openRepeatIt(context);
+  context.commands.registerCommand(OPEN_COMMAND_ID, (launchContext) => {
+    void openRepeatIt(context, launchContext);
   });
 
   for (const scope of scopes) {
@@ -127,31 +165,75 @@ export async function activate(activation: ActivationContext) {
   console.log(`Repeat It registered ${registeredActions.length} context-menu actions.`);
 }
 
-async function openRepeatIt(context: Context) {
+async function openRepeatIt(context: Context, launchContext: unknown) {
   let shouldStayOpen = true;
   let selectedDropdownDevice: DeviceName | null = null;
-  let selectedInsertPosition: InsertPosition = "end";
+  let selectedInsertPosition: InsertPosition = lastInsertPosition;
+  let selectedTrackScope: TrackScope = lastTrackScope;
 
   while (shouldStayOpen) {
+    const selectedTrackCount = getSelectedTracks(context, launchContext).length;
+    const shouldRunAutoUpdateCheck = !hasRunSessionUpdateCheck;
+    hasRunSessionUpdateCheck = true;
     const selection = await showRepeatItDialog(
       context,
       selectedDropdownDevice,
       selectedInsertPosition,
+      selectedTrackScope,
+      selectedTrackCount,
+      shouldRunAutoUpdateCheck,
     );
 
     if (!selection) {
       shouldStayOpen = false;
+    } else if (selection.action === "close") {
+      updateUserOptions(context, selection.userOptions);
+      selectedInsertPosition = selection.insertPosition ?? selectedInsertPosition;
+      selectedTrackScope = selection.trackScope ?? selectedTrackScope;
+      lastInsertPosition = selectedInsertPosition;
+      lastTrackScope = selectedTrackScope;
+      shouldStayOpen = false;
     } else if (selection.action === "add") {
+      updateUserOptions(context, selection.userOptions);
       selectedDropdownDevice = getDropdownDevice(selection.deviceName) ?? selectedDropdownDevice;
       selectedInsertPosition = selection.insertPosition ?? selectedInsertPosition;
-      await insertDeviceOnEveryTrack(context, selection.deviceName, selectedInsertPosition);
+      selectedTrackScope = selection.trackScope ?? selectedTrackScope;
+      lastInsertPosition = selectedInsertPosition;
+      lastTrackScope = selectedTrackScope;
+      await insertDeviceOnTracks(
+        context,
+        getTargetTracks(context, launchContext, selectedTrackScope),
+        selection.deviceName,
+        selectedInsertPosition,
+        selectedTrackScope,
+      );
     } else if (selection.action === "openUrl") {
+      updateUserOptions(context, selection.userOptions);
       await openExternalUrl(selection.url);
     } else if (selection.action === "removeAll") {
-      await deleteAllAbletonFX(context);
+      updateUserOptions(context, selection.userOptions);
+      selectedInsertPosition = selection.insertPosition ?? selectedInsertPosition;
+      selectedTrackScope = selection.trackScope ?? selectedTrackScope;
+      lastInsertPosition = selectedInsertPosition;
+      lastTrackScope = selectedTrackScope;
+      await deleteAllAbletonFX(
+        context,
+        getTargetTracks(context, launchContext, selectedTrackScope),
+        selectedTrackScope,
+      );
     } else {
+      updateUserOptions(context, selection.userOptions);
       selectedDropdownDevice = getDropdownDevice(selection.deviceName) ?? selectedDropdownDevice;
-      await deleteDeviceFromEveryTrack(context, selection.deviceName);
+      selectedInsertPosition = selection.insertPosition ?? selectedInsertPosition;
+      selectedTrackScope = selection.trackScope ?? selectedTrackScope;
+      lastInsertPosition = selectedInsertPosition;
+      lastTrackScope = selectedTrackScope;
+      await deleteDeviceFromTracks(
+        context,
+        getTargetTracks(context, launchContext, selectedTrackScope),
+        selection.deviceName,
+        selectedTrackScope,
+      );
     }
   }
 }
@@ -160,12 +242,19 @@ async function showRepeatItDialog(
   context: Context,
   selectedDropdownDevice: DeviceName | null,
   selectedInsertPosition: InsertPosition,
+  selectedTrackScope: TrackScope,
+  selectedTrackCount: number,
+  shouldRunAutoUpdateCheck: boolean,
 ) {
   const modalHtml = repeatItInterface
     .replace("__REPEAT_IT_QUICK_DEVICE_NAMES__", JSON.stringify(QUICK_DEVICE_NAMES))
     .replace("__REPEAT_IT_DROPDOWN_DEVICE_NAMES__", JSON.stringify(DROPDOWN_DEVICE_NAMES))
     .replace("__REPEAT_IT_SELECTED_DROPDOWN_DEVICE__", JSON.stringify(selectedDropdownDevice))
     .replace("__REPEAT_IT_SELECTED_INSERT_POSITION__", JSON.stringify(selectedInsertPosition))
+    .replace("__REPEAT_IT_SELECTED_TRACK_SCOPE__", JSON.stringify(selectedTrackScope))
+    .replace("__REPEAT_IT_SELECTED_TRACK_COUNT__", JSON.stringify(selectedTrackCount))
+    .replace("__REPEAT_IT_AUTO_UPDATE_CHECK__", JSON.stringify(shouldRunAutoUpdateCheck))
+    .replace("__REPEAT_IT_USER_OPTIONS__", JSON.stringify(userOptions))
     .replace("__REPEAT_IT_LOGO_MARKUP__", LOGO_MARKUP)
     .replace("__REPEAT_IT_ACTIVE_DEVICE_NAMES__", JSON.stringify(getActiveDeviceNames(context)))
     .replace("__REPEAT_IT_VERSION__", JSON.stringify(EXTENSION_VERSION))
@@ -202,6 +291,82 @@ async function openExternalUrl(url: string) {
   });
 }
 
+function getOptionsPath(context: Context): string | null {
+  if (!context.environment.storageDirectory) {
+    return null;
+  }
+
+  const path = require("node:path");
+  return path.join(context.environment.storageDirectory, "options.json");
+}
+
+function loadUserOptions(context: Context): UserOptions {
+  const optionsPath = getOptionsPath(context);
+
+  if (!optionsPath) {
+    return { ...DEFAULT_USER_OPTIONS };
+  }
+
+  try {
+    const fs = require("node:fs");
+
+    if (!fs.existsSync(optionsPath)) {
+      return { ...DEFAULT_USER_OPTIONS };
+    }
+
+    return parseUserOptions(JSON.parse(fs.readFileSync(optionsPath, "utf8"))) ??
+      { ...DEFAULT_USER_OPTIONS };
+  } catch (error) {
+    console.error("Repeat It could not load options.", error);
+    return { ...DEFAULT_USER_OPTIONS };
+  }
+}
+
+function saveUserOptions(context: Context, options: UserOptions) {
+  const optionsPath = getOptionsPath(context);
+
+  if (!optionsPath || !context.environment.storageDirectory) {
+    return;
+  }
+
+  try {
+    const fs = require("node:fs");
+    fs.mkdirSync(context.environment.storageDirectory, { recursive: true });
+    fs.writeFileSync(optionsPath, JSON.stringify(options, null, 2), "utf8");
+  } catch (error) {
+    console.error("Repeat It could not save options.", error);
+  }
+}
+
+function updateUserOptions(context: Context, options: UserOptions | undefined) {
+  if (!options) {
+    return;
+  }
+
+  userOptions = options;
+  saveUserOptions(context, userOptions);
+}
+
+function parseUserOptions(value: unknown): UserOptions | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+
+  const options = value as {
+    isDarkModeEnabled?: unknown;
+    areTooltipsEnabled?: unknown;
+  };
+
+  return {
+    isDarkModeEnabled: typeof options.isDarkModeEnabled === "boolean"
+      ? options.isDarkModeEnabled
+      : DEFAULT_USER_OPTIONS.isDarkModeEnabled,
+    areTooltipsEnabled: typeof options.areTooltipsEnabled === "boolean"
+      ? options.areTooltipsEnabled
+      : DEFAULT_USER_OPTIONS.areTooltipsEnabled,
+  };
+}
+
 function getDropdownDevice(deviceName: DeviceName): DeviceName | null {
   return DROPDOWN_DEVICE_NAMES.includes(deviceName as (typeof DROPDOWN_DEVICE_NAMES)[number])
     ? deviceName
@@ -220,16 +385,110 @@ function getActiveDeviceNames(context: Context): DeviceName[] {
   );
 }
 
-async function insertDeviceOnEveryTrack(
+function getTargetTracks(
   context: Context,
+  launchContext: unknown,
+  trackScope: TrackScope,
+): SongTrack[] {
+  if (trackScope === "all") {
+    return context.application.song.tracks;
+  }
+
+  return getSelectedTracks(context, launchContext);
+}
+
+function getSelectedTracks(context: Context, launchContext: unknown): SongTrack[] {
+  const tracks = context.application.song.tracks;
+  const selectedTracks: SongTrack[] = [];
+
+  function addTrack(track: SongTrack | null) {
+    if (!track || !tracks.some((songTrack) => isSameObject(songTrack, track))) {
+      return;
+    }
+
+    if (!selectedTracks.some((selectedTrack) => isSameObject(selectedTrack, track))) {
+      selectedTracks.push(track);
+    }
+  }
+
+  if (isHandle(launchContext)) {
+    addTrack(getTrackFromHandle(context, launchContext));
+  } else if (isArrangementSelection(launchContext)) {
+    for (const laneHandle of launchContext.selected_lanes) {
+      addTrack(getTrackFromHandle(context, laneHandle));
+    }
+  }
+
+  return selectedTracks;
+}
+
+function getTrackFromHandle(context: Context, handle: Handle): SongTrack | null {
+  try {
+    let object: DataModelObject<typeof API_VERSION> | null = context.getObjectFromHandle(
+      handle,
+      DataModelObject,
+    );
+
+    while (object) {
+      if (object instanceof Track) {
+        return object;
+      }
+
+      object = object.parent;
+    }
+  } catch (error) {
+    console.error("Repeat It could not resolve the selected track.", error);
+  }
+
+  return null;
+}
+
+function isSameObject(
+  left: DataModelObject<typeof API_VERSION>,
+  right: DataModelObject<typeof API_VERSION>,
+) {
+  return left.handle.id === right.handle.id;
+}
+
+function isHandle(value: unknown): value is Handle {
+  return typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    typeof value.id === "bigint";
+}
+
+function isArrangementSelection(value: unknown): value is ArrangementSelection {
+  return typeof value === "object" &&
+    value !== null &&
+    "selected_lanes" in value &&
+    Array.isArray(value.selected_lanes);
+}
+
+function getTrackScopeLabel(trackScope: TrackScope, trackCount: number) {
+  if (trackScope === "selected") {
+    return trackCount === 1 ? "the selected track" : `${trackCount} selected tracks`;
+  }
+
+  return trackCount === 1 ? "the track" : "all tracks";
+}
+
+async function insertDeviceOnTracks(
+  context: Context,
+  tracks: SongTrack[],
   deviceName: string,
   insertPosition: InsertPosition,
+  trackScope: TrackScope,
 ) {
-  const tracks = context.application.song.tracks;
   const positionLabel = insertPosition === "start" ? "at the start of" : "at the end of";
+  const trackScopeLabel = getTrackScopeLabel(trackScope, tracks.length);
+
+  if (tracks.length === 0) {
+    console.warn(`Repeat It had no ${trackScope} track(s) to add ${deviceName} to.`);
+    return;
+  }
 
   await context.ui.withinProgressDialog(
-    `Adding ${deviceName} ${positionLabel} each track`,
+    `Adding ${deviceName} ${positionLabel} ${trackScopeLabel}`,
     { progress: 0 },
     async (update, signal) => {
       let inserted = 0;
@@ -260,7 +519,7 @@ async function insertDeviceOnEveryTrack(
 }
 
 async function insertDevice(
-  track: Context["application"]["song"]["tracks"][number],
+  track: SongTrack,
   deviceName: string,
   insertPosition: InsertPosition,
 ) {
@@ -280,11 +539,21 @@ async function insertDevice(
   throw lastError;
 }
 
-async function deleteDeviceFromEveryTrack(context: Context, deviceName: DeviceName) {
-  const tracks = context.application.song.tracks;
+async function deleteDeviceFromTracks(
+  context: Context,
+  tracks: SongTrack[],
+  deviceName: DeviceName,
+  trackScope: TrackScope,
+) {
+  const trackScopeLabel = getTrackScopeLabel(trackScope, tracks.length);
+
+  if (tracks.length === 0) {
+    console.warn(`Repeat It had no ${trackScope} track(s) to delete ${deviceName} from.`);
+    return;
+  }
 
   await context.ui.withinProgressDialog(
-    `Deleting ${deviceName} from all tracks`,
+    `Deleting ${deviceName} from ${trackScopeLabel}`,
     { progress: 0 },
     async (update, signal) => {
       let deleted = 0;
@@ -318,103 +587,133 @@ async function deleteDeviceFromEveryTrack(context: Context, deviceName: DeviceNa
   );
 }
 
-  async function deleteAllAbletonFX(context: Context) {
-    const tracks = context.application.song.tracks;
+async function deleteAllAbletonFX(
+  context: Context,
+  tracks: SongTrack[],
+  trackScope: TrackScope,
+) {
+  const trackScopeLabel = getTrackScopeLabel(trackScope, tracks.length);
 
-    await context.ui.withinProgressDialog(
-      "Deleting all Ableton FX",
-      { progress: 0 },
-      async (update, signal) => {
-        let deleted = 0;
-        const failures: string[] = [];
-
-        for (const [index, track] of tracks.entries()) {
-          signal.throwIfAborted();
-
-          try {
-            const matchingDevices = track.devices.filter((device) =>
-              DEVICE_NAMES.includes(device.name as DeviceName),
-            );
-
-            for (const device of matchingDevices.reverse()) {
-              await track.deleteDevice(device);
-              deleted += 1;
-            }
-          } catch (error) {
-            failures.push(track.name);
-            console.error(`Repeat It could not delete Ableton FX from ${track.name}.`, error);
-          }
-
-          const progress = Math.round(((index + 1) / tracks.length) * 100);
-          await update(`Deleted ${deleted} device(s)`, progress);
-        }
-
-        if (failures.length > 0) {
-          console.warn(
-            `Repeat It could not delete from ${failures.length} track(s): ${failures.join(", ")}`,
-          );
-        }
-      },
-    );
+  if (tracks.length === 0) {
+    console.warn(`Repeat It had no ${trackScope} track(s) to delete Ableton FX from.`);
+    return;
   }
 
-  function parseSelection(result: unknown): RepeatItSelection | null {
-    try {
-      const parsed = typeof result === "string"
-        ? JSON.parse(result)
-        : result;
+  await context.ui.withinProgressDialog(
+    `Deleting Ableton FX from ${trackScopeLabel}`,
+    { progress: 0 },
+    async (update, signal) => {
+      let deleted = 0;
+      const failures: string[] = [];
 
-      if (typeof parsed !== "object" || parsed === null) {
-        return null;
-      }
+      for (const [index, track] of tracks.entries()) {
+        signal.throwIfAborted();
 
-      const selection = parsed as {
-        action?: unknown;
-        deviceName?: unknown;
-        url?: unknown;
-        insertPosition?: unknown;
-      };
+        try {
+          const matchingDevices = track.devices.filter((device) =>
+            DEVICE_NAMES.includes(device.name as DeviceName),
+          );
 
-      if (selection.action === "openUrl") {
-        if (typeof selection.url !== "string" || !selection.url.startsWith("https://github.com/")) {
-          return null;
+          for (const device of matchingDevices.reverse()) {
+            await track.deleteDevice(device);
+            deleted += 1;
+          }
+        } catch (error) {
+          failures.push(track.name);
+          console.error(`Repeat It could not delete Ableton FX from ${track.name}.`, error);
         }
 
-        return {
-          action: "openUrl",
-          url: selection.url,
-        };
+        const progress = Math.round(((index + 1) / tracks.length) * 100);
+        await update(`Deleted ${deleted} device(s)`, progress);
       }
 
-      if (selection.action === "removeAll") {
-        return {
-          action: "removeAll",
-        };
+      if (failures.length > 0) {
+        console.warn(
+          `Repeat It could not delete from ${failures.length} track(s): ${failures.join(", ")}`,
+        );
       }
+    },
+  );
+}
 
-      if (selection.action !== "add" && selection.action !== "delete") {
-        return null;
-      }
+function parseSelection(result: unknown): RepeatItSelection | null {
+  try {
+    const parsed = typeof result === "string"
+      ? JSON.parse(result)
+      : result;
 
-      if (
-        typeof selection.deviceName !== "string" ||
-        !DEVICE_NAMES.includes(selection.deviceName as DeviceName)
-      ) {
-        return null;
-      }
-
-      const selectionResult: RepeatItSelection = {
-        action: selection.action,
-        deviceName: selection.deviceName as DeviceName,
-      };
-
-      if (selection.insertPosition === "start" || selection.insertPosition === "end") {
-        selectionResult.insertPosition = selection.insertPosition;
-      }
-
-      return selectionResult;
-    } catch (error) {
-      console.error("Repeat It could not read the selection.", error);
+    if (typeof parsed !== "object" || parsed === null) {
       return null;
     }
+
+    const selection = parsed as {
+      action?: unknown;
+      deviceName?: unknown;
+      url?: unknown;
+      insertPosition?: unknown;
+      trackScope?: unknown;
+      userOptions?: unknown;
+    };
+    const parsedUserOptions = parseUserOptions(selection.userOptions) ?? undefined;
+
+    if (selection.action === "openUrl") {
+      if (typeof selection.url !== "string" || !selection.url.startsWith("https://github.com/")) {
+        return null;
+      }
+
+      return {
+        action: "openUrl",
+        url: selection.url,
+        userOptions: parsedUserOptions,
+      };
+    }
+
+    if (selection.action === "removeAll") {
+      return {
+        action: "removeAll",
+        insertPosition: parseInsertPosition(selection.insertPosition),
+        trackScope: parseTrackScope(selection.trackScope),
+        userOptions: parsedUserOptions,
+      };
+    }
+
+    if (selection.action === "close") {
+      return {
+        action: "close",
+        insertPosition: parseInsertPosition(selection.insertPosition),
+        trackScope: parseTrackScope(selection.trackScope),
+        userOptions: parsedUserOptions,
+      };
+    }
+
+    if (selection.action !== "add" && selection.action !== "delete") {
+      return null;
+    }
+
+    if (
+      typeof selection.deviceName !== "string" ||
+      !DEVICE_NAMES.includes(selection.deviceName as DeviceName)
+    ) {
+      return null;
+    }
+
+    return {
+      action: selection.action,
+      deviceName: selection.deviceName as DeviceName,
+      insertPosition: parseInsertPosition(selection.insertPosition),
+      trackScope: parseTrackScope(selection.trackScope),
+      userOptions: parsedUserOptions,
+    };
+  } catch (error) {
+    console.error("Repeat It could not read the selection.", error);
+    return null;
   }
+}
+
+function parseTrackScope(trackScope: unknown): TrackScope {
+  return trackScope === "selected" ? "selected" : "all";
+}
+
+function parseInsertPosition(insertPosition: unknown): InsertPosition {
+  return insertPosition === "start" ? "start" : "end";
+}

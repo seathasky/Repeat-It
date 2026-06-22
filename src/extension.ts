@@ -179,7 +179,7 @@ export async function activate(activation: ActivationContext) {
 
 async function openRepeatIt(context: Context, launchContext: unknown) {
   let shouldStayOpen = true;
-  let selectedDropdownDevice: DeviceName | null = null;
+  let selectedDevice: DeviceName | null = null;
   let selectedInsertPosition: InsertPosition = lastInsertPosition;
   let selectedTrackScope: TrackScope = lastTrackScope;
 
@@ -189,7 +189,7 @@ async function openRepeatIt(context: Context, launchContext: unknown) {
     hasRunSessionUpdateCheck = true;
     const selection = await showRepeatItDialog(
       context,
-      selectedDropdownDevice,
+      selectedDevice,
       selectedInsertPosition,
       selectedTrackScope,
       selectedTrackCount,
@@ -207,7 +207,7 @@ async function openRepeatIt(context: Context, launchContext: unknown) {
       shouldStayOpen = false;
     } else if (selection.action === "add") {
       updateUserOptions(context, selection.userOptions);
-      selectedDropdownDevice = getDropdownDevice(selection.deviceName) ?? selectedDropdownDevice;
+      selectedDevice = selection.deviceName;
       selectedInsertPosition = selection.insertPosition ?? selectedInsertPosition;
       selectedTrackScope = selection.trackScope ?? selectedTrackScope;
       lastInsertPosition = selectedInsertPosition;
@@ -235,7 +235,7 @@ async function openRepeatIt(context: Context, launchContext: unknown) {
       );
     } else {
       updateUserOptions(context, selection.userOptions);
-      selectedDropdownDevice = getDropdownDevice(selection.deviceName) ?? selectedDropdownDevice;
+      selectedDevice = selection.deviceName;
       selectedInsertPosition = selection.insertPosition ?? selectedInsertPosition;
       selectedTrackScope = selection.trackScope ?? selectedTrackScope;
       lastInsertPosition = selectedInsertPosition;
@@ -252,7 +252,7 @@ async function openRepeatIt(context: Context, launchContext: unknown) {
 
 async function showRepeatItDialog(
   context: Context,
-  selectedDropdownDevice: DeviceName | null,
+  selectedDevice: DeviceName | null,
   selectedInsertPosition: InsertPosition,
   selectedTrackScope: TrackScope,
   selectedTrackCount: number,
@@ -261,7 +261,7 @@ async function showRepeatItDialog(
   const modalHtml = repeatItInterface
     .replace("__REPEAT_IT_QUICK_DEVICE_NAMES__", JSON.stringify(QUICK_DEVICE_NAMES))
     .replace("__REPEAT_IT_DROPDOWN_DEVICE_NAMES__", JSON.stringify(DROPDOWN_DEVICE_NAMES))
-    .replace("__REPEAT_IT_SELECTED_DROPDOWN_DEVICE__", JSON.stringify(selectedDropdownDevice))
+    .replace("__REPEAT_IT_SELECTED_DROPDOWN_DEVICE__", JSON.stringify(selectedDevice))
     .replace("__REPEAT_IT_SELECTED_INSERT_POSITION__", JSON.stringify(selectedInsertPosition))
     .replace("__REPEAT_IT_SELECTED_TRACK_SCOPE__", JSON.stringify(selectedTrackScope))
     .replace("__REPEAT_IT_SELECTED_TRACK_COUNT__", JSON.stringify(selectedTrackCount))
@@ -431,12 +431,6 @@ function parseCommonDeviceSlots(value: unknown): (DeviceName | null)[] {
   }
 
   return slots;
-}
-
-function getDropdownDevice(deviceName: DeviceName): DeviceName | null {
-  return DROPDOWN_DEVICE_NAMES.includes(deviceName as (typeof DROPDOWN_DEVICE_NAMES)[number])
-    ? deviceName
-    : null;
 }
 
 function getActiveDeviceNames(context: Context): DeviceName[] {

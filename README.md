@@ -2,13 +2,14 @@
 
 An Ableton Live Extension for adding or removing Ableton audio effects across tracks.
 
-<img src="https://i.imgur.com/Hx4l2G5.png" alt="Repeat It" width="406">
+<img src="https://i.imgur.com/dTMJhGk.png" alt="Repeat It" width="406">
 
 ## What it does
 
 - Right-click an audio or MIDI track and open Repeat It.
 - Pick an Ableton effect/tool, choose `All tracks` or `Selected tracks`, then click `Add` or `Remove`.
 - Insert new devices at the `Start` or `End` of the device chain.
+- Customize the `Common effects/tools` slots with `+` and `x`.
 - Use `Remove all Ableton FX` to clear supported Ableton FX from the current scope.
 
 All included devices are Ableton audio effects/tools.
@@ -19,7 +20,7 @@ All included devices are Ableton audio effects/tools.
 ## Options
 
 - Dark mode and tooltips are enabled by default.
-- Options are saved between Ableton restarts.
+- Options and custom common slots are saved between Ableton restarts.
 - Update checks run once per Ableton session and only show text when an update is available.
 
 ## Setup

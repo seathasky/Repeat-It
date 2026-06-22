@@ -8,7 +8,7 @@
 
 - Right-click any audio or MIDI track.
 - Choose `Repeat It: Add Utility to all tracks`, or one of the other configured devices.
-- The extension inserts that device at the end of every regular track's device chain.
+- The extension inserts that device at the start or end of every regular track's device chain depending on what you pick.
 
 All Ableton FX devices included!
 

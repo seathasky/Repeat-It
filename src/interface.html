@@ -9,6 +9,7 @@
     const QUICK_DEVICES = __REPEAT_IT_QUICK_DEVICE_NAMES__;
     const DROPDOWN_DEVICES = __REPEAT_IT_DROPDOWN_DEVICE_NAMES__;
     const SELECTED_DROPDOWN_DEVICE = __REPEAT_IT_SELECTED_DROPDOWN_DEVICE__;
+    const SELECTED_INSERT_POSITION = __REPEAT_IT_SELECTED_INSERT_POSITION__;
     const ACTIVE_DEVICES = new Set(__REPEAT_IT_ACTIVE_DEVICE_NAMES__);
     const VERSION = __REPEAT_IT_VERSION__;
     const UPDATE_CHECK_URL = __REPEAT_IT_UPDATE_CHECK_URL__;
@@ -36,6 +37,7 @@
 
     let latestReleaseUrl = RELEASES_URL;
     let pendingAction = null;
+    let selectedInsertPosition = SELECTED_INSERT_POSITION === "start" ? "start" : "end";
 
     const UNSUPPORTED_DROPDOWN_DEVICES = new Set([
       "Align Delay",
@@ -45,13 +47,13 @@
     ]);
 
     function confirmAction(action, deviceName) {
-      pendingAction = { action, deviceName };
+      pendingAction = { action, deviceName, insertPosition: selectedInsertPosition };
 
       document.getElementById("confirm-title").textContent = action === "add"
         ? `Add ${deviceName}?`
         : `Delete all ${deviceName}?`;
       document.getElementById("confirm-copy").textContent = action === "add"
-        ? `This will add ${deviceName} to every track.`
+        ? `This will add ${deviceName} to the ${selectedInsertPosition === "start" ? "start" : "end"} of every track.`
         : `This will delete every ${deviceName} from every track.`;
       document.getElementById("confirm-yes").textContent = action === "add"
         ? "Add to all"
@@ -186,7 +188,16 @@
     document.addEventListener("DOMContentLoaded", () => {
       const grid = document.getElementById("device-grid");
       const deviceSelect = document.getElementById("device-select");
+      const insertPositionButtons = document.querySelectorAll("[data-insert-position]");
       document.getElementById("version").textContent = `v${VERSION}`;
+
+      function syncInsertPositionButtons() {
+        for (const button of insertPositionButtons) {
+          const isActive = button.dataset.insertPosition === selectedInsertPosition;
+          button.className = isActive ? "placement-button active" : "placement-button";
+          button.setAttribute("aria-pressed", String(isActive));
+        }
+      }
 
       for (const deviceName of QUICK_DEVICES) {
         const tile = document.createElement("div");
@@ -229,6 +240,14 @@
 
       if (DROPDOWN_DEVICES.includes(SELECTED_DROPDOWN_DEVICE)) {
         deviceSelect.value = SELECTED_DROPDOWN_DEVICE;
+      }
+
+      syncInsertPositionButtons();
+      for (const button of insertPositionButtons) {
+        button.addEventListener("click", () => {
+          selectedInsertPosition = button.dataset.insertPosition === "start" ? "start" : "end";
+          syncInsertPositionButtons();
+        });
       }
 
       document.addEventListener("keydown", (event) => {
@@ -333,6 +352,43 @@
       font-size: 11px;
       line-height: 1.3;
       font-weight: 600;
+    }
+
+    .placement-panel {
+      display: grid;
+      gap: 6px;
+    }
+
+    .placement-toggle {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .placement-button {
+      min-height: 28px;
+      border: 1px solid var(--live-border);
+      background: var(--live-control);
+      color: var(--live-text);
+      cursor: pointer;
+      font: inherit;
+      line-height: 1.2;
+      padding: 0 10px;
+      text-align: center;
+    }
+
+    .placement-button:hover {
+      background: var(--live-control-hover);
+    }
+
+    .placement-button.active {
+      background: var(--live-accent);
+      color: var(--live-input);
+    }
+
+    .placement-button:focus {
+      outline: 2px solid var(--live-accent-pressed);
+      outline-offset: 1px;
     }
 
     .section-title {
@@ -468,7 +524,8 @@
     .delete-button:focus,
     .dropdown-action:focus,
     .device-select:focus,
-    .cancel-button:focus {
+    .cancel-button:focus,
+    .placement-button:focus {
       outline: 2px solid var(--live-accent-pressed);
       outline-offset: 1px;
     }
@@ -628,6 +685,14 @@
       </div>
       <button class="close-button cancel-button" type="button" onclick="closeWithResult({ action: 'close' })">Close</button>
     </header>
+
+    <section class="placement-panel" aria-label="Insert position">
+      <div class="section-title">Insert position</div>
+      <div class="placement-toggle">
+        <button class="placement-button" type="button" data-insert-position="start" aria-pressed="false">Start</button>
+        <button class="placement-button" type="button" data-insert-position="end" aria-pressed="false">End</button>
+      </div>
+    </section>
 
     <div class="section-title">Common effects/tools</div>
     <section class="device-grid" id="device-grid" aria-label="Devices"></section>

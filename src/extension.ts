@@ -72,6 +72,7 @@ const DROPDOWN_DEVICE_NAMES = [
 const DEVICE_NAMES = [...QUICK_DEVICE_NAMES, ...DROPDOWN_DEVICE_NAMES] as const;
 
 type DeviceName = (typeof DEVICE_NAMES)[number];
+type InsertPosition = "start" | "end";
 const MAX_FOR_LIVE_DEVICE_PATHS: Partial<Record<DeviceName, readonly string[]>> = {
   "Align Delay": [
     "/Applications/Ableton Live 12 Beta.app/Contents/App-Resources/Builtin/Devices/Audio Effects/Align Delay/Ableton Folder Info/Align Delay.amxd",
@@ -90,6 +91,7 @@ type Context = ReturnType<typeof initialize>;
 type RepeatItSelection = {
   action: "add" | "delete";
   deviceName: DeviceName;
+  insertPosition?: InsertPosition;
 } | {
   action: "openUrl";
   url: string;
@@ -126,15 +128,21 @@ export async function activate(activation: ActivationContext) {
 async function openRepeatIt(context: Context) {
   let shouldStayOpen = true;
   let selectedDropdownDevice: DeviceName | null = null;
+  let selectedInsertPosition: InsertPosition = "end";
 
   while (shouldStayOpen) {
-    const selection = await showRepeatItDialog(context, selectedDropdownDevice);
+    const selection = await showRepeatItDialog(
+      context,
+      selectedDropdownDevice,
+      selectedInsertPosition,
+    );
 
     if (!selection) {
       shouldStayOpen = false;
     } else if (selection.action === "add") {
       selectedDropdownDevice = getDropdownDevice(selection.deviceName) ?? selectedDropdownDevice;
-      await insertDeviceOnEveryTrack(context, selection.deviceName);
+      selectedInsertPosition = selection.insertPosition ?? selectedInsertPosition;
+      await insertDeviceOnEveryTrack(context, selection.deviceName, selectedInsertPosition);
     } else if (selection.action === "openUrl") {
       await openExternalUrl(selection.url);
     } else if (selection.action === "removeAll") {
@@ -146,11 +154,16 @@ async function openRepeatIt(context: Context) {
   }
 }
 
-async function showRepeatItDialog(context: Context, selectedDropdownDevice: DeviceName | null) {
+async function showRepeatItDialog(
+  context: Context,
+  selectedDropdownDevice: DeviceName | null,
+  selectedInsertPosition: InsertPosition,
+) {
   const modalHtml = repeatItInterface
     .replace("__REPEAT_IT_QUICK_DEVICE_NAMES__", JSON.stringify(QUICK_DEVICE_NAMES))
     .replace("__REPEAT_IT_DROPDOWN_DEVICE_NAMES__", JSON.stringify(DROPDOWN_DEVICE_NAMES))
     .replace("__REPEAT_IT_SELECTED_DROPDOWN_DEVICE__", JSON.stringify(selectedDropdownDevice))
+    .replace("__REPEAT_IT_SELECTED_INSERT_POSITION__", JSON.stringify(selectedInsertPosition))
     .replace("__REPEAT_IT_ACTIVE_DEVICE_NAMES__", JSON.stringify(getActiveDeviceNames(context)))
     .replace("__REPEAT_IT_VERSION__", JSON.stringify(EXTENSION_VERSION))
     .replace("__REPEAT_IT_UPDATE_CHECK_URL__", JSON.stringify(UPDATE_CHECK_URL))
@@ -204,11 +217,16 @@ function getActiveDeviceNames(context: Context): DeviceName[] {
   );
 }
 
-async function insertDeviceOnEveryTrack(context: Context, deviceName: DeviceName) {
+async function insertDeviceOnEveryTrack(
+  context: Context,
+  deviceName: DeviceName,
+  insertPosition: InsertPosition,
+) {
   const tracks = context.application.song.tracks;
+  const positionLabel = insertPosition === "start" ? "at the start of" : "at the end of";
 
   await context.ui.withinProgressDialog(
-    `Adding ${deviceName} to all tracks`,
+    `Adding ${deviceName} ${positionLabel} each track`,
     { progress: 0 },
     async (update, signal) => {
       let inserted = 0;
@@ -218,7 +236,7 @@ async function insertDeviceOnEveryTrack(context: Context, deviceName: DeviceName
         signal.throwIfAborted();
 
         try {
-          await insertDevice(track, deviceName);
+          await insertDevice(track, deviceName, insertPosition);
           inserted += 1;
         } catch (error) {
           failures.push(track.name);
@@ -241,13 +259,15 @@ async function insertDeviceOnEveryTrack(context: Context, deviceName: DeviceName
 async function insertDevice(
   track: Context["application"]["song"]["tracks"][number],
   deviceName: DeviceName,
+  insertPosition: InsertPosition,
 ) {
   const insertNames = [deviceName, ...(MAX_FOR_LIVE_DEVICE_PATHS[deviceName] ?? [])];
   let lastError: unknown = null;
+  const insertIndex = insertPosition === "start" ? 0 : track.devices.length;
 
   for (const insertName of insertNames) {
     try {
-      return await track.insertDevice(insertName, track.devices.length);
+      return await track.insertDevice(insertName, insertIndex);
     } catch (error) {
       lastError = error;
       console.error(`Repeat It could not add ${insertName} to ${track.name}.`, error);
@@ -349,6 +369,7 @@ async function deleteDeviceFromEveryTrack(context: Context, deviceName: DeviceNa
         action?: unknown;
         deviceName?: unknown;
         url?: unknown;
+        insertPosition?: unknown;
       };
 
       if (selection.action === "openUrl") {
@@ -379,10 +400,16 @@ async function deleteDeviceFromEveryTrack(context: Context, deviceName: DeviceNa
         return null;
       }
 
-      return {
+      const selectionResult: RepeatItSelection = {
         action: selection.action,
         deviceName: selection.deviceName as DeviceName,
       };
+
+      if (selection.insertPosition === "start" || selection.insertPosition === "end") {
+        selectionResult.insertPosition = selection.insertPosition;
+      }
+
+      return selectionResult;
     } catch (error) {
       console.error("Repeat It could not read the selection.", error);
       return null;

@@ -1,16 +1,26 @@
 # Repeat It
 
- An Ableton Live Extension for adding one effect to every track at once.
+An Ableton Live Extension for adding or removing Ableton audio effects across tracks.
 
 <img src="https://i.imgur.com/Hx4l2G5.png" alt="Repeat It" width="406">
 
 ## What it does
 
-- Right-click any audio or MIDI track.
-- Choose `Repeat It: Add Utility to all tracks`, or one of the other configured devices.
-- The extension inserts that device at the start or end of every regular track's device chain depending on what you pick.
+- Right-click an audio or MIDI track and open Repeat It.
+- Pick an Ableton effect/tool, choose `All tracks` or `Selected tracks`, then click `Add` or `Remove`.
+- Insert new devices at the `Start` or `End` of the device chain.
+- Use `Remove all Ableton FX` to clear supported Ableton FX from the current scope.
 
-All Ableton FX devices included!
+All included devices are Ableton audio effects/tools.
+
+> [!IMPORTANT]
+> Third-party VST support is planned, but we are waiting on Ableton to add it to the Ableton Extensions API.
+
+## Options
+
+- Dark mode and tooltips are enabled by default.
+- Options are saved between Ableton restarts.
+- Update checks run once per Ableton session and only show text when an update is available.
 
 ## Setup
 
@@ -25,4 +35,10 @@ To run against Live:
 npm start
 ```
 
-or Download the compiled ablx from [Releases](https://github.com/seathasky/Repeat-It/releases)
+To build an installable `.ablx`:
+
+```sh
+npm run package
+```
+
+Or download the compiled `.ablx` from [Releases](https://github.com/seathasky/Repeat-It/releases).

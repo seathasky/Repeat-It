@@ -9,11 +9,13 @@ import repeatItInterface from "./interface.html";
 const API_VERSION = "1.0.0";
 const OPEN_COMMAND_ID = "repeat-it.open";
 declare const __REPEAT_IT_BUILD_VERSION__: string;
+declare const __REPEAT_IT_LOGO_MARKUP__: string;
 declare const process: { platform: string };
 declare function require(moduleName: string): {
   execFile: (file: string, args: string[], callback?: (error: unknown) => void) => void;
 };
 const EXTENSION_VERSION = __REPEAT_IT_BUILD_VERSION__;
+const LOGO_MARKUP = __REPEAT_IT_LOGO_MARKUP__;
 const UPDATE_CHECK_URL = "https://api.github.com/repos/seathasky/Repeat-It/releases/latest";
 const RELEASES_URL = "https://github.com/seathasky/Repeat-It/releases";
 
@@ -27,7 +29,6 @@ const QUICK_DEVICE_NAMES = [
   "Auto Filter",
   "Delay",
   "Reverb",
-  "Spectrum",
 ] as const;
 
 const DROPDOWN_DEVICE_NAMES = [
@@ -65,6 +66,7 @@ const DROPDOWN_DEVICE_NAMES = [
   "Shifter",
   "Spectral Resonator",
   "Spectral Time",
+  "Spectrum",
   "Tuner",
   "Vocoder",
 ] as const;
@@ -73,7 +75,7 @@ const DEVICE_NAMES = [...QUICK_DEVICE_NAMES, ...DROPDOWN_DEVICE_NAMES] as const;
 
 type DeviceName = (typeof DEVICE_NAMES)[number];
 type InsertPosition = "start" | "end";
-const MAX_FOR_LIVE_DEVICE_PATHS: Partial<Record<DeviceName, readonly string[]>> = {
+const MAX_FOR_LIVE_DEVICE_PATHS: Partial<Record<string, readonly string[]>> = {
   "Align Delay": [
     "/Applications/Ableton Live 12 Beta.app/Contents/App-Resources/Builtin/Devices/Audio Effects/Align Delay/Ableton Folder Info/Align Delay.amxd",
   ],
@@ -164,14 +166,15 @@ async function showRepeatItDialog(
     .replace("__REPEAT_IT_DROPDOWN_DEVICE_NAMES__", JSON.stringify(DROPDOWN_DEVICE_NAMES))
     .replace("__REPEAT_IT_SELECTED_DROPDOWN_DEVICE__", JSON.stringify(selectedDropdownDevice))
     .replace("__REPEAT_IT_SELECTED_INSERT_POSITION__", JSON.stringify(selectedInsertPosition))
+    .replace("__REPEAT_IT_LOGO_MARKUP__", LOGO_MARKUP)
     .replace("__REPEAT_IT_ACTIVE_DEVICE_NAMES__", JSON.stringify(getActiveDeviceNames(context)))
     .replace("__REPEAT_IT_VERSION__", JSON.stringify(EXTENSION_VERSION))
     .replace("__REPEAT_IT_UPDATE_CHECK_URL__", JSON.stringify(UPDATE_CHECK_URL))
     .replace("__REPEAT_IT_RELEASES_URL__", JSON.stringify(RELEASES_URL));
   const result = await context.ui.showModalDialog(
     `data:text/html,${encodeURIComponent(modalHtml)}`,
-    420,
-    620,
+    560,
+    490,
   );
 
   return parseSelection(result);
@@ -219,7 +222,7 @@ function getActiveDeviceNames(context: Context): DeviceName[] {
 
 async function insertDeviceOnEveryTrack(
   context: Context,
-  deviceName: DeviceName,
+  deviceName: string,
   insertPosition: InsertPosition,
 ) {
   const tracks = context.application.song.tracks;
@@ -258,7 +261,7 @@ async function insertDeviceOnEveryTrack(
 
 async function insertDevice(
   track: Context["application"]["song"]["tracks"][number],
-  deviceName: DeviceName,
+  deviceName: string,
   insertPosition: InsertPosition,
 ) {
   const insertNames = [deviceName, ...(MAX_FOR_LIVE_DEVICE_PATHS[deviceName] ?? [])];

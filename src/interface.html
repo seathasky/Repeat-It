@@ -38,6 +38,9 @@
     let latestReleaseUrl = RELEASES_URL;
     let pendingAction = null;
     let selectedInsertPosition = SELECTED_INSERT_POSITION === "start" ? "start" : "end";
+    let selectedDevice = DROPDOWN_DEVICES.includes(SELECTED_DROPDOWN_DEVICE)
+      ? SELECTED_DROPDOWN_DEVICE
+      : QUICK_DEVICES[0];
 
     const UNSUPPORTED_DROPDOWN_DEVICES = new Set([
       "Align Delay",
@@ -75,10 +78,41 @@
     }
 
     function confirmSelectedDevice(action) {
-      const deviceName = document.getElementById("device-select").value;
+      if (selectedDevice) {
+        confirmAction(action, selectedDevice);
+      }
+    }
 
+    function selectDevice(deviceName) {
       if (deviceName) {
-        confirmAction(action, deviceName);
+        selectedDevice = deviceName;
+        syncSelectedDeviceControls();
+      }
+    }
+
+    function syncSelectedDeviceControls() {
+      const selectedLabel = document.getElementById("selected-device-label");
+      const deviceSelect = document.getElementById("device-select");
+      const addButton = document.getElementById("add-selected-button");
+      const deleteButton = document.getElementById("delete-selected-button");
+
+      selectedLabel.textContent = selectedDevice || "";
+      addButton.disabled = !selectedDevice;
+      deleteButton.disabled = !selectedDevice;
+
+      for (const button of document.querySelectorAll("[data-device-name]")) {
+        const isSelected = button.dataset.deviceName === selectedDevice;
+        const isInstalled = ACTIVE_DEVICES.has(button.dataset.deviceName);
+        button.className = [
+          "device-button",
+          isSelected ? "selected" : "",
+          isInstalled ? "installed" : "",
+        ].filter(Boolean).join(" ");
+        button.setAttribute("aria-pressed", String(isSelected));
+      }
+
+      if (DROPDOWN_DEVICES.includes(selectedDevice)) {
+        deviceSelect.value = selectedDevice;
       }
     }
 
@@ -186,7 +220,7 @@
     }
 
     document.addEventListener("DOMContentLoaded", () => {
-      const grid = document.getElementById("device-grid");
+      const grid = document.getElementById("device-list");
       const deviceSelect = document.getElementById("device-select");
       const insertPositionButtons = document.querySelectorAll("[data-insert-position]");
       document.getElementById("version").textContent = `v${VERSION}`;
@@ -200,25 +234,14 @@
       }
 
       for (const deviceName of QUICK_DEVICES) {
-        const tile = document.createElement("div");
-        tile.className = "device-tile";
-
-        const addButton = document.createElement("button");
-        addButton.className = ACTIVE_DEVICES.has(deviceName)
-          ? "device-button active"
-          : "device-button";
-        addButton.type = "button";
-        addButton.textContent = deviceName;
-        addButton.addEventListener("click", () => confirmAction("add", deviceName));
-
-        const deleteButton = document.createElement("button");
-        deleteButton.className = "delete-button";
-        deleteButton.type = "button";
-        deleteButton.textContent = "Delete all";
-        deleteButton.addEventListener("click", () => confirmAction("delete", deviceName));
-
-        tile.append(addButton, deleteButton);
-        grid.appendChild(tile);
+        const button = document.createElement("button");
+        button.className = "device-button";
+        button.type = "button";
+        button.dataset.deviceName = deviceName;
+        button.textContent = deviceName;
+        button.setAttribute("aria-pressed", "false");
+        button.addEventListener("click", () => selectDevice(deviceName));
+        grid.appendChild(button);
       }
 
       const orderedDropdownDevices = [
@@ -243,6 +266,9 @@
       }
 
       syncInsertPositionButtons();
+      syncSelectedDeviceControls();
+      deviceSelect.addEventListener("change", () => selectDevice(deviceSelect.value));
+
       for (const button of insertPositionButtons) {
         button.addEventListener("click", () => {
           selectedInsertPosition = button.dataset.insertPosition === "start" ? "start" : "end";
@@ -286,6 +312,8 @@
       --live-active-text: hsl(120, 18%, 10%);
       --live-danger: hsl(0, 72%, 48%);
       --live-danger-hover: hsl(0, 67%, 39%);
+      --repeat-teal: hsl(184, 85%, 39%);
+      --repeat-teal-hover: hsl(184, 86%, 45%);
     }
 
     html {
@@ -309,13 +337,13 @@
       display: flex;
       min-height: calc(100vh - 28px);
       flex-direction: column;
-      gap: 9px;
+      gap: 10px;
     }
 
     .header {
       display: flex;
-      align-items: baseline;
-      justify-content: space-between;
+      align-items: center;
+      justify-content: flex-start;
       gap: 12px;
       border-bottom: 1px solid var(--live-border);
       padding-bottom: 8px;
@@ -330,15 +358,30 @@
     .title-group {
       display: flex;
       flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
       gap: 3px;
       min-width: 0;
     }
 
-    .title-line {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      min-width: 0;
+    .brand-logo {
+      display: block;
+      width: 110px;
+      height: 40px;
+      flex: 0 0 110px;
+      overflow: visible;
+    }
+
+    .brand-logo svg {
+      display: block;
+      width: 102px;
+      height: 40px;
+      overflow: visible;
     }
 
     .version {
@@ -362,11 +405,11 @@
     .placement-toggle {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 8px;
+      gap: 6px;
     }
 
     .placement-button {
-      min-height: 28px;
+      min-height: 24px;
       border: 1px solid var(--live-border);
       background: var(--live-control);
       color: var(--live-text);
@@ -382,7 +425,7 @@
     }
 
     .placement-button.active {
-      background: var(--live-accent);
+      background: var(--repeat-teal);
       color: var(--live-input);
     }
 
@@ -397,20 +440,27 @@
       line-height: 1.2;
     }
 
-    .device-grid {
+    .workbench {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
+      grid-template-columns: 160px minmax(0, 1fr);
+      gap: 12px;
+      padding: 0;
     }
 
-    .device-tile {
+    .common-panel,
+    .controls-panel {
       display: grid;
-      grid-template-rows: 34px 18px;
+      align-content: start;
+      gap: 6px;
       min-width: 0;
     }
 
+    .device-list {
+      display: grid;
+      gap: 4px;
+    }
+
     .device-button,
-    .delete-button,
     .dropdown-action,
     .cancel-button {
       border: 1px solid var(--live-border);
@@ -424,56 +474,41 @@
     }
 
     .device-button:hover,
-    .delete-button:hover,
     .dropdown-action:hover,
     .cancel-button:hover {
       background: var(--live-control-hover);
     }
 
+    .device-button {
+      min-height: 24px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     .device-button:active {
-      background: var(--live-accent);
+      background: var(--repeat-teal);
       color: var(--live-input);
     }
 
-    .device-button.active {
-      background: var(--live-active);
-      color: var(--live-active-text);
+    .device-button.installed {
+      border-left: 4px solid var(--live-active);
     }
 
-    .device-button.active:hover {
-      background: var(--live-active-hover);
-      color: var(--live-active-text);
-    }
-
-    .delete-button {
-      min-height: 18px;
-      border-top: 0;
-      background: var(--live-input);
-      color: var(--live-muted);
-      font-size: 10px;
-      text-align: center;
-    }
-
-    .delete-button:hover {
-      background: var(--live-danger-hover);
-      color: var(--live-text);
-    }
-
-    .delete-button:active {
-      background: var(--live-danger);
-      color: var(--live-text);
+    .device-button.selected {
+      background: var(--repeat-teal);
+      color: var(--live-input);
     }
 
     .dropdown-panel {
       display: grid;
       gap: 6px;
-      border-top: 1px solid var(--live-border);
-      padding-top: 9px;
+      min-width: 0;
     }
 
     .device-select {
       width: 100%;
-      min-height: 28px;
+      min-height: 24px;
       border: 1px solid var(--live-border);
       background: var(--live-input);
       color: var(--live-text);
@@ -484,12 +519,52 @@
     .dropdown-actions {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 8px;
+      gap: 6px;
+    }
+
+    .danger-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      column-gap: 6px;
+      row-gap: 8px;
+    }
+
+    .danger-actions::before {
+      content: "";
+      grid-column: 2;
+      border-top: 1px solid var(--live-border);
     }
 
     .dropdown-action {
-      min-height: 28px;
+      min-height: 24px;
       text-align: center;
+    }
+
+    .action-panel {
+      display: grid;
+      gap: 6px;
+      border-top: 1px solid var(--live-border);
+      padding-top: 8px;
+    }
+
+    .selected-device-title {
+      color: var(--repeat-teal);
+      font-size: 14px;
+      letter-spacing: 0.02em;
+      line-height: 1.2;
+      text-transform: uppercase;
+    }
+
+    .selected-device-label {
+      min-height: 32px;
+      border: 1px solid var(--live-border);
+      border-left: 4px solid var(--live-active);
+      background: var(--live-input);
+      color: var(--live-active);
+      font-size: 18px;
+      line-height: 1.2;
+      padding: 5px 10px;
+      text-transform: uppercase;
     }
 
     .dropdown-action.delete:hover {
@@ -507,7 +582,9 @@
     }
 
     .remove-button {
-      min-height: 28px;
+      grid-column: 2;
+      height: 24px;
+      align-self: start;
       border: 1px solid var(--live-border);
       background: var(--live-danger);
       color: var(--live-text);
@@ -521,23 +598,12 @@
     }
 
     .device-button:focus,
-    .delete-button:focus,
     .dropdown-action:focus,
     .device-select:focus,
     .cancel-button:focus,
     .placement-button:focus {
       outline: 2px solid var(--live-accent-pressed);
       outline-offset: 1px;
-    }
-
-    .footer {
-      display: flex;
-      margin-top: auto;
-      align-items: flex-end;
-      justify-content: flex-end;
-      gap: 12px;
-      border-top: 1px solid var(--live-border);
-      padding-top: 8px;
     }
 
     .close-button {
@@ -551,22 +617,14 @@
       align-self: start;
     }
 
-    .header {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 12px;
-      border-bottom: 1px solid var(--live-border);
-      padding-bottom: 8px;
-    }
-
     .update {
       display: flex;
-      flex: 1;
       min-width: 0;
       flex-direction: column;
-      align-items: flex-start;
+      align-items: stretch;
       gap: 4px;
+      border-top: 1px solid var(--live-border);
+      padding-top: 8px;
     }
 
     .update-button {
@@ -594,6 +652,7 @@
       color: var(--live-muted);
       font-size: 10.5px;
       line-height: 1.25;
+      text-align: left;
     }
 
     .status-link {
@@ -609,6 +668,29 @@
     .cancel-button {
       min-height: 28px;
       text-align: center;
+    }
+
+    .bottom-actions {
+      display: grid;
+      grid-template-columns: 160px minmax(0, 1fr);
+      gap: 12px;
+      margin-top: auto;
+    }
+
+    .bottom-actions .close-button {
+      justify-self: end;
+    }
+
+    .close-panel {
+      position: fixed;
+      right: 14px;
+      bottom: 14px;
+    }
+
+    .close-stack {
+      display: grid;
+      border-top: 1px solid var(--live-border);
+      padding-top: 8px;
     }
 
     .confirm-panel {
@@ -677,42 +759,58 @@
   <main class="shell">
     <header class="header">
       <div class="title-group">
-        <div class="title-line">
-          <h1>Repeat It</h1>
+        <div class="brand-row">
+          <div class="brand-logo" aria-label="Repeat It" role="img">__REPEAT_IT_LOGO_MARKUP__</div>
           <div class="version" id="version"></div>
         </div>
         <p class="description">Add or remove Live audio effects across every track at once.</p>
       </div>
-      <button class="close-button cancel-button" type="button" onclick="closeWithResult({ action: 'close' })">Close</button>
     </header>
 
-    <section class="placement-panel" aria-label="Insert position">
-      <div class="section-title">Insert position</div>
-      <div class="placement-toggle">
-        <button class="placement-button" type="button" data-insert-position="start" aria-pressed="false">Start</button>
-        <button class="placement-button" type="button" data-insert-position="end" aria-pressed="false">End</button>
-      </div>
+    <section class="workbench">
+      <section class="common-panel" aria-label="Common devices">
+        <div class="section-title">Common effects/tools</div>
+        <section class="device-list" id="device-list" aria-label="Devices"></section>
+        <section class="dropdown-panel" aria-label="More devices">
+          <div class="section-title">More effects/tools</div>
+          <select class="device-select" id="device-select"></select>
+        </section>
+      </section>
+
+      <section class="controls-panel" aria-label="Device controls">
+        <section class="placement-panel" aria-label="Insert position">
+          <div class="section-title">Insert position</div>
+          <div class="placement-toggle">
+            <button class="placement-button" type="button" data-insert-position="start" aria-pressed="false">Start</button>
+            <button class="placement-button" type="button" data-insert-position="end" aria-pressed="false">End</button>
+          </div>
+        </section>
+
+        <section class="action-panel" aria-label="Selected device actions">
+          <div class="selected-device-title">Selected device</div>
+          <div class="selected-device-label" id="selected-device-label"></div>
+        </section>
+
+        <div class="dropdown-actions">
+          <button class="dropdown-action" id="add-selected-button" type="button" onclick="confirmSelectedDevice('add')">Add</button>
+          <button class="dropdown-action delete" id="delete-selected-button" type="button" onclick="confirmSelectedDevice('delete')">Remove</button>
+        </div>
+        <div class="danger-actions">
+          <button class="remove-button" type="button" onclick="confirmRemoveAllAbletonFX()">Remove all Ableton FX</button>
+        </div>
+      </section>
     </section>
-
-    <div class="section-title">Common effects/tools</div>
-    <section class="device-grid" id="device-grid" aria-label="Devices"></section>
-
-    <section class="dropdown-panel" aria-label="More devices">
-      <div class="section-title">More effects/tools</div>
-      <select class="device-select" id="device-select"></select>
-      <div class="dropdown-actions">
-        <button class="dropdown-action" type="button" onclick="confirmSelectedDevice('add')">Add selected</button>
-        <button class="dropdown-action delete" type="button" onclick="confirmSelectedDevice('delete')">Delete selected</button>
-      </div>
-    </section>
-
-    <footer class="footer">
+    <section class="bottom-actions" aria-label="Window actions">
       <div class="update">
         <button class="update-button" id="update-button" type="button" onclick="checkForUpdates()">Check for updates</button>
         <div class="update-status" id="update-status"></div>
       </div>
-      <button class="remove-button" type="button" onclick="confirmRemoveAllAbletonFX()">Remove all ableton fx</button>
-    </footer>
+      <div class="close-panel">
+        <div class="close-stack">
+          <button class="close-button cancel-button" type="button" onclick="closeWithResult({ action: 'close' })">CLOSE</button>
+        </div>
+      </div>
+    </section>
     <section class="confirm-panel" id="confirm-panel" hidden>
       <div class="confirm-box">
         <h2 id="confirm-title"></h2>

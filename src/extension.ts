@@ -14,7 +14,10 @@ const API_VERSION = "1.0.0";
 const OPEN_COMMAND_ID = "repeat-it.open";
 declare const __REPEAT_IT_BUILD_VERSION__: string;
 declare const __REPEAT_IT_LOGO_MARKUP__: string;
-declare const process: { platform: string };
+declare const process: {
+  env?: Record<string, string | undefined>;
+  platform: string;
+};
 declare function require(moduleName: "node:child_process"): {
   execFile: (file: string, args: string[], callback?: (error: unknown) => void) => void;
 };
@@ -25,6 +28,7 @@ declare function require(moduleName: "node:fs"): {
   writeFileSync: (path: string, data: string, encoding: "utf8") => void;
 };
 declare function require(moduleName: "node:path"): {
+  dirname: (path: string) => string;
   join: (...paths: string[]) => string;
 };
 const EXTENSION_VERSION = __REPEAT_IT_BUILD_VERSION__;
@@ -85,6 +89,12 @@ const DROPDOWN_DEVICE_NAMES = [
 ] as const;
 
 const DEVICE_NAMES = [...QUICK_DEVICE_NAMES, ...DROPDOWN_DEVICE_NAMES] as const;
+const DEFAULT_COMMON_DEVICE_SLOTS = [
+  ...QUICK_DEVICE_NAMES.slice(0, 8),
+  null,
+  null,
+  null,
+] as const;
 
 type DeviceName = (typeof DEVICE_NAMES)[number];
 type InsertPosition = "start" | "end";
@@ -92,6 +102,7 @@ type TrackScope = "all" | "selected";
 type UserOptions = {
   isDarkModeEnabled: boolean;
   areTooltipsEnabled: boolean;
+  commonDeviceSlots: (DeviceName | null)[];
 };
 const MAX_FOR_LIVE_DEVICE_PATHS: Partial<Record<string, readonly string[]>> = {
   "Align Delay": [
@@ -132,6 +143,7 @@ type RepeatItSelection = {
 const DEFAULT_USER_OPTIONS: UserOptions = {
   isDarkModeEnabled: true,
   areTooltipsEnabled: true,
+  commonDeviceSlots: [...DEFAULT_COMMON_DEVICE_SLOTS],
 };
 let lastInsertPosition: InsertPosition = "end";
 let lastTrackScope: TrackScope = "all";
@@ -291,50 +303,82 @@ async function openExternalUrl(url: string) {
   });
 }
 
-function getOptionsPath(context: Context): string | null {
-  if (!context.environment.storageDirectory) {
-    return null;
+function getOptionsPaths(context: Context): string[] {
+  const path = require("node:path");
+  const paths: string[] = [];
+
+  if (context.environment.storageDirectory) {
+    paths.push(path.join(context.environment.storageDirectory, "options.json"));
   }
 
+  const fallbackDirectory = getFallbackOptionsDirectory();
+
+  if (fallbackDirectory) {
+    paths.push(path.join(fallbackDirectory, "options.json"));
+  }
+
+  return [...new Set(paths)];
+}
+
+function getFallbackOptionsDirectory(): string | null {
   const path = require("node:path");
-  return path.join(context.environment.storageDirectory, "options.json");
+  const env = process.env ?? {};
+
+  if (process.platform === "darwin" && env.HOME) {
+    return path.join(env.HOME, "Library", "Application Support", "Repeat It");
+  }
+
+  if (process.platform === "win32" && env.APPDATA) {
+    return path.join(env.APPDATA, "Repeat It");
+  }
+
+  if (env.XDG_CONFIG_HOME) {
+    return path.join(env.XDG_CONFIG_HOME, "Repeat It");
+  }
+
+  if (env.HOME) {
+    return path.join(env.HOME, ".config", "Repeat It");
+  }
+
+  return null;
 }
 
 function loadUserOptions(context: Context): UserOptions {
-  const optionsPath = getOptionsPath(context);
-
-  if (!optionsPath) {
-    return { ...DEFAULT_USER_OPTIONS };
-  }
+  const optionsPaths = getOptionsPaths(context);
 
   try {
     const fs = require("node:fs");
 
-    if (!fs.existsSync(optionsPath)) {
-      return { ...DEFAULT_USER_OPTIONS };
-    }
+    for (const optionsPath of optionsPaths) {
+      if (!fs.existsSync(optionsPath)) {
+        continue;
+      }
 
-    return parseUserOptions(JSON.parse(fs.readFileSync(optionsPath, "utf8"))) ??
-      { ...DEFAULT_USER_OPTIONS };
+      const options = parseUserOptions(JSON.parse(fs.readFileSync(optionsPath, "utf8")));
+
+      if (options) {
+        return options;
+      }
+    }
   } catch (error) {
     console.error("Repeat It could not load options.", error);
-    return { ...DEFAULT_USER_OPTIONS };
   }
+
+  return { ...DEFAULT_USER_OPTIONS };
 }
 
 function saveUserOptions(context: Context, options: UserOptions) {
-  const optionsPath = getOptionsPath(context);
+  const optionsPaths = getOptionsPaths(context);
+  const fs = require("node:fs");
+  const path = require("node:path");
 
-  if (!optionsPath || !context.environment.storageDirectory) {
-    return;
-  }
-
-  try {
-    const fs = require("node:fs");
-    fs.mkdirSync(context.environment.storageDirectory, { recursive: true });
-    fs.writeFileSync(optionsPath, JSON.stringify(options, null, 2), "utf8");
-  } catch (error) {
-    console.error("Repeat It could not save options.", error);
+  for (const optionsPath of optionsPaths) {
+    try {
+      fs.mkdirSync(path.dirname(optionsPath), { recursive: true });
+      fs.writeFileSync(optionsPath, JSON.stringify(options, null, 2), "utf8");
+    } catch (error) {
+      console.error(`Repeat It could not save options to ${optionsPath}.`, error);
+    }
   }
 }
 
@@ -355,6 +399,7 @@ function parseUserOptions(value: unknown): UserOptions | null {
   const options = value as {
     isDarkModeEnabled?: unknown;
     areTooltipsEnabled?: unknown;
+    commonDeviceSlots?: unknown;
   };
 
   return {
@@ -364,7 +409,28 @@ function parseUserOptions(value: unknown): UserOptions | null {
     areTooltipsEnabled: typeof options.areTooltipsEnabled === "boolean"
       ? options.areTooltipsEnabled
       : DEFAULT_USER_OPTIONS.areTooltipsEnabled,
+    commonDeviceSlots: parseCommonDeviceSlots(options.commonDeviceSlots),
   };
+}
+
+function parseCommonDeviceSlots(value: unknown): (DeviceName | null)[] {
+  if (!Array.isArray(value)) {
+    return [...DEFAULT_USER_OPTIONS.commonDeviceSlots];
+  }
+
+  const slots = value
+    .slice(0, 11)
+    .map((deviceName) =>
+      typeof deviceName === "string" && DEVICE_NAMES.includes(deviceName as DeviceName)
+        ? deviceName as DeviceName
+        : null,
+    );
+
+  while (slots.length < 11) {
+    slots.push(null);
+  }
+
+  return slots;
 }
 
 function getDropdownDevice(deviceName: DeviceName): DeviceName | null {

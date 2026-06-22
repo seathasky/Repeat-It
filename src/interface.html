@@ -8,6 +8,7 @@
   <script>
     const QUICK_DEVICES = __REPEAT_IT_QUICK_DEVICE_NAMES__;
     const DROPDOWN_DEVICES = __REPEAT_IT_DROPDOWN_DEVICE_NAMES__;
+    const ALL_DEVICES = [...QUICK_DEVICES, ...DROPDOWN_DEVICES];
     const SELECTED_DROPDOWN_DEVICE = __REPEAT_IT_SELECTED_DROPDOWN_DEVICE__;
     const SELECTED_INSERT_POSITION = __REPEAT_IT_SELECTED_INSERT_POSITION__;
     const SELECTED_TRACK_SCOPE = __REPEAT_IT_SELECTED_TRACK_SCOPE__;
@@ -36,6 +37,7 @@
       return {
         isDarkModeEnabled,
         areTooltipsEnabled,
+        commonDeviceSlots,
       };
     }
 
@@ -79,13 +81,19 @@
     let areTooltipsEnabled = USER_OPTIONS && USER_OPTIONS.areTooltipsEnabled === false
       ? false
       : true;
+    let commonDeviceSlots = Array.isArray(USER_OPTIONS && USER_OPTIONS.commonDeviceSlots)
+      ? USER_OPTIONS.commonDeviceSlots.slice(0, 11)
+      : [...QUICK_DEVICES.slice(0, 8), null, null, null];
+    while (commonDeviceSlots.length < 11) {
+      commonDeviceSlots.push(null);
+    }
     let selectedInsertPosition = SELECTED_INSERT_POSITION === "start" ? "start" : "end";
     let selectedTrackScope = SELECTED_TRACK_SCOPE === "selected" && SELECTED_TRACK_COUNT > 0
       ? "selected"
       : "all";
-    let selectedDevice = DROPDOWN_DEVICES.includes(SELECTED_DROPDOWN_DEVICE)
+    let selectedDevice = ALL_DEVICES.includes(SELECTED_DROPDOWN_DEVICE)
       ? SELECTED_DROPDOWN_DEVICE
-      : QUICK_DEVICES[0];
+      : commonDeviceSlots.find((deviceName) => ALL_DEVICES.includes(deviceName)) || "";
 
     const UNSUPPORTED_DROPDOWN_DEVICES = new Set([
       "Align Delay",
@@ -132,6 +140,22 @@
       document.getElementById("confirm-panel").hidden = false;
     }
 
+    function confirmRemoveCommonDevice(slotIndex) {
+      const deviceName = commonDeviceSlots[slotIndex];
+
+      if (!deviceName) {
+        return;
+      }
+
+      pendingAction = { action: "removeCommon", slotIndex, deviceName };
+      document.getElementById("confirm-title").textContent = `Remove ${deviceName}?`;
+      document.getElementById("confirm-copy").textContent =
+        "This removes it from Common effects/tools. It will not delete anything from your Live Set.";
+      document.getElementById("confirm-yes").textContent = "Remove";
+      document.getElementById("confirm-yes").className = "confirm-button danger";
+      document.getElementById("confirm-panel").hidden = false;
+    }
+
     function confirmSelectedDevice(action) {
       if (selectedDevice) {
         confirmAction(action, selectedDevice);
@@ -147,7 +171,6 @@
 
     function syncSelectedDeviceControls() {
       const selectedLabel = document.getElementById("selected-device-label");
-      const deviceSelect = document.getElementById("device-select");
       const addButton = document.getElementById("add-selected-button");
       const deleteButton = document.getElementById("delete-selected-button");
 
@@ -166,9 +189,83 @@
         button.setAttribute("aria-pressed", String(isSelected));
       }
 
-      if (DROPDOWN_DEVICES.includes(selectedDevice)) {
-        deviceSelect.value = selectedDevice;
+    }
+
+    function renderCommonDeviceSlots() {
+      const grid = document.getElementById("device-list");
+      grid.replaceChildren();
+
+      for (const [slotIndex, deviceName] of commonDeviceSlots.entries()) {
+        const slot = document.createElement("div");
+        slot.className = "common-slot";
+
+        if (deviceName) {
+          const button = document.createElement("button");
+          button.className = "device-button";
+          button.type = "button";
+          button.dataset.deviceName = deviceName;
+          button.textContent = deviceName;
+          button.setAttribute("aria-pressed", "false");
+          button.addEventListener("click", () => selectDevice(deviceName));
+
+          const removeButton = document.createElement("button");
+          removeButton.className = "common-remove-button";
+          removeButton.type = "button";
+          removeButton.textContent = "x";
+          removeButton.setAttribute("aria-label", `Remove ${deviceName} from common effects`);
+          removeButton.addEventListener("click", () => confirmRemoveCommonDevice(slotIndex));
+
+          slot.append(button, removeButton);
+        } else {
+          const addButton = document.createElement("button");
+          addButton.className = "device-button add-slot-button";
+          addButton.type = "button";
+          addButton.textContent = "+";
+          addButton.setAttribute("aria-label", "Add common effect");
+          addButton.addEventListener("click", () => showCommonDevicePicker(slotIndex));
+          slot.appendChild(addButton);
+        }
+
+        grid.appendChild(slot);
       }
+
+      syncSelectedDeviceControls();
+    }
+
+    function showCommonDevicePicker(slotIndex) {
+      const grid = document.getElementById("device-list");
+      const slot = grid.children[slotIndex];
+      const usedDevices = new Set(commonDeviceSlots.filter(Boolean));
+      const availableDevices = ALL_DEVICES.filter((deviceName) =>
+        !usedDevices.has(deviceName) && !UNSUPPORTED_DROPDOWN_DEVICES.has(deviceName),
+      );
+      const picker = document.createElement("select");
+      picker.className = "common-picker";
+
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = "Pick effect";
+      picker.appendChild(placeholder);
+
+      for (const availableDevice of availableDevices) {
+        const option = document.createElement("option");
+        option.value = availableDevice;
+        option.textContent = availableDevice;
+        picker.appendChild(option);
+      }
+
+      picker.addEventListener("change", () => {
+        if (!ALL_DEVICES.includes(picker.value)) {
+          return;
+        }
+
+        commonDeviceSlots[slotIndex] = picker.value;
+        selectedDevice = picker.value;
+        renderCommonDeviceSlots();
+      });
+
+      slot.replaceChildren(picker);
+      picker.focus();
     }
 
     function getTrackScopeCopy() {
@@ -209,6 +306,17 @@
         document.getElementById("confirm-copy").textContent =
           `This action will remove every supported Ableton audio effect from ${getTrackScopeCopy()}. This cannot be undone.`;
         document.getElementById("confirm-yes").textContent = "Yes, delete all";
+        return;
+      }
+
+      if (pendingAction.action === "removeCommon") {
+        commonDeviceSlots[pendingAction.slotIndex] = null;
+        if (selectedDevice === pendingAction.deviceName) {
+          selectedDevice = commonDeviceSlots.find((deviceName) => ALL_DEVICES.includes(deviceName)) ||
+            "";
+        }
+        renderCommonDeviceSlots();
+        cancelPendingAction();
         return;
       }
 
@@ -315,8 +423,6 @@
     }
 
     document.addEventListener("DOMContentLoaded", () => {
-      const grid = document.getElementById("device-list");
-      const deviceSelect = document.getElementById("device-select");
       const insertPositionButtons = document.querySelectorAll("[data-insert-position]");
       const trackScopeButtons = document.querySelectorAll("[data-track-scope]");
       const darkModeToggle = document.getElementById("dark-mode-toggle");
@@ -337,42 +443,9 @@
         }
       }
 
-      for (const deviceName of QUICK_DEVICES) {
-        const button = document.createElement("button");
-        button.className = "device-button";
-        button.type = "button";
-        button.dataset.deviceName = deviceName;
-        button.textContent = deviceName;
-        button.setAttribute("aria-pressed", "false");
-        button.addEventListener("click", () => selectDevice(deviceName));
-        grid.appendChild(button);
-      }
-
-      const orderedDropdownDevices = [
-        ...DROPDOWN_DEVICES.filter((deviceName) => !UNSUPPORTED_DROPDOWN_DEVICES.has(deviceName)),
-        ...DROPDOWN_DEVICES.filter((deviceName) => UNSUPPORTED_DROPDOWN_DEVICES.has(deviceName)),
-      ];
-
-      for (const deviceName of orderedDropdownDevices) {
-        const option = document.createElement("option");
-        option.value = deviceName;
-        option.textContent = UNSUPPORTED_DROPDOWN_DEVICES.has(deviceName)
-          ? `${deviceName} (M4L not supported)`
-          : deviceName;
-        if (UNSUPPORTED_DROPDOWN_DEVICES.has(deviceName)) {
-          option.disabled = true;
-        }
-        deviceSelect.appendChild(option);
-      }
-
-      if (DROPDOWN_DEVICES.includes(SELECTED_DROPDOWN_DEVICE)) {
-        deviceSelect.value = SELECTED_DROPDOWN_DEVICE;
-      }
-
       syncInsertPositionButtons();
       syncTrackScopeButtons();
-      syncSelectedDeviceControls();
-      deviceSelect.addEventListener("change", () => selectDevice(deviceSelect.value));
+      renderCommonDeviceSlots();
 
       for (const button of trackScopeButtons) {
         button.addEventListener("click", () => {
@@ -469,6 +542,10 @@
       --live-text: hsl(0, 0%, 12%);
       --live-muted: hsl(0, 0%, 35%);
       --live-active-text: hsl(0, 0%, 100%);
+    }
+
+    body.light-mode .dropdown-action {
+      color: hsl(0, 0%, 5%);
     }
 
     body.options-open .workbench,
@@ -655,6 +732,7 @@
     }
 
     .device-button,
+    .common-remove-button,
     .dropdown-action,
     .cancel-button {
       border: 1px solid var(--live-border);
@@ -668,6 +746,7 @@
     }
 
     .device-button:hover,
+    .common-remove-button:hover,
     .dropdown-action:hover,
     .cancel-button:hover {
       background: var(--live-control-hover);
@@ -678,6 +757,40 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    .common-slot {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 22px;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .common-slot .device-button {
+      min-width: 0;
+    }
+
+    .common-remove-button {
+      min-height: 24px;
+      padding: 0;
+      text-align: center;
+    }
+
+    .add-slot-button {
+      grid-column: 1 / -1;
+      color: var(--live-muted);
+      text-align: center;
+    }
+
+    .common-picker {
+      grid-column: 1 / -1;
+      width: 100%;
+      min-height: 24px;
+      border: 1px solid var(--live-border);
+      background: var(--live-input);
+      color: var(--live-text);
+      font: inherit;
+      padding: 0 6px;
     }
 
     .device-button:active {
@@ -692,22 +805,6 @@
     .device-button.selected {
       background: var(--repeat-teal);
       color: var(--live-input);
-    }
-
-    .dropdown-panel {
-      display: grid;
-      gap: 6px;
-      min-width: 0;
-    }
-
-    .device-select {
-      width: 100%;
-      min-height: 24px;
-      border: 1px solid var(--live-border);
-      background: var(--live-input);
-      color: var(--live-text);
-      font: inherit;
-      padding: 0 8px;
     }
 
     .dropdown-actions {
@@ -783,10 +880,6 @@
       color: var(--live-text);
     }
 
-    .device-select option:disabled {
-      color: var(--live-muted);
-    }
-
     .remove-button {
       position: relative;
       grid-column: 2;
@@ -805,8 +898,9 @@
     }
 
     .device-button:focus,
+    .common-remove-button:focus,
+    .common-picker:focus,
     .dropdown-action:focus,
-    .device-select:focus,
     .cancel-button:focus,
     .placement-button:focus {
       outline: 2px solid var(--live-accent-pressed);
@@ -1064,11 +1158,7 @@
       <section class="common-panel" aria-label="Common devices">
         <div class="section-title">Common effects/tools</div>
         <section class="device-list" id="device-list" aria-label="Devices"></section>
-        <section class="dropdown-panel" aria-label="More devices">
-          <div class="section-title">More effects/tools</div>
-          <select class="device-select" id="device-select"></select>
-        </section>
-        </section>
+      </section>
 
       <section class="controls-panel" aria-label="Device controls">
         <section class="placement-panel" aria-label="Track scope">

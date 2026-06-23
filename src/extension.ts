@@ -54,6 +54,7 @@ type TrackScope = "all" | "selected";
 type UserOptions = {
   isDarkModeEnabled: boolean;
   areTooltipsEnabled: boolean;
+  shouldSkipGroupTracks: boolean;
   commonDeviceSlots: (DeviceName | null)[];
 };
 type Context = ReturnType<typeof initialize>;
@@ -66,6 +67,7 @@ type RepeatItSelection = {
   deviceConfig?: DeviceConfig;
   insertPosition?: InsertPosition;
   trackScope?: TrackScope;
+  shouldSkipGroupTracks?: boolean;
 } | {
   action: "openUrl";
   url: string;
@@ -73,15 +75,18 @@ type RepeatItSelection = {
   action: "removeAll";
   insertPosition?: InsertPosition;
   trackScope?: TrackScope;
+  shouldSkipGroupTracks?: boolean;
 } | {
   action: "close";
   insertPosition?: InsertPosition;
   trackScope?: TrackScope;
+  shouldSkipGroupTracks?: boolean;
 });
 
 const DEFAULT_USER_OPTIONS: UserOptions = {
   isDarkModeEnabled: true,
   areTooltipsEnabled: true,
+  shouldSkipGroupTracks: false,
   commonDeviceSlots: [...DEFAULT_COMMON_DEVICE_SLOTS],
 };
 let lastInsertPosition: InsertPosition = "end";
@@ -121,6 +126,7 @@ async function openRepeatIt(context: Context, launchContext: unknown) {
   let selectedDevice: DeviceName | null = null;
   let selectedInsertPosition: InsertPosition = lastInsertPosition;
   let selectedTrackScope: TrackScope = lastTrackScope;
+  let shouldSkipGroupTracks = userOptions.shouldSkipGroupTracks;
 
   while (shouldStayOpen) {
     const selectedTrackCount = getSelectedTracks(context, launchContext).length;
@@ -141,6 +147,7 @@ async function openRepeatIt(context: Context, launchContext: unknown) {
       updateUserOptions(context, selection.userOptions);
       selectedInsertPosition = selection.insertPosition ?? selectedInsertPosition;
       selectedTrackScope = selection.trackScope ?? selectedTrackScope;
+      shouldSkipGroupTracks = selection.shouldSkipGroupTracks ?? shouldSkipGroupTracks;
       lastInsertPosition = selectedInsertPosition;
       lastTrackScope = selectedTrackScope;
       shouldStayOpen = false;
@@ -149,11 +156,12 @@ async function openRepeatIt(context: Context, launchContext: unknown) {
       selectedDevice = selection.deviceName;
       selectedInsertPosition = selection.insertPosition ?? selectedInsertPosition;
       selectedTrackScope = selection.trackScope ?? selectedTrackScope;
+      shouldSkipGroupTracks = selection.shouldSkipGroupTracks ?? shouldSkipGroupTracks;
       lastInsertPosition = selectedInsertPosition;
       lastTrackScope = selectedTrackScope;
       await insertDeviceOnTracks(
         context,
-        getTargetTracks(context, launchContext, selectedTrackScope),
+        getTargetTracks(context, launchContext, selectedTrackScope, shouldSkipGroupTracks),
         selection.deviceName,
         selectedInsertPosition,
         selectedTrackScope,
@@ -166,11 +174,12 @@ async function openRepeatIt(context: Context, launchContext: unknown) {
       updateUserOptions(context, selection.userOptions);
       selectedInsertPosition = selection.insertPosition ?? selectedInsertPosition;
       selectedTrackScope = selection.trackScope ?? selectedTrackScope;
+      shouldSkipGroupTracks = selection.shouldSkipGroupTracks ?? shouldSkipGroupTracks;
       lastInsertPosition = selectedInsertPosition;
       lastTrackScope = selectedTrackScope;
       await deleteAllAbletonFX(
         context,
-        getTargetTracks(context, launchContext, selectedTrackScope),
+        getTargetTracks(context, launchContext, selectedTrackScope, shouldSkipGroupTracks),
         selectedTrackScope,
       );
     } else {
@@ -178,11 +187,12 @@ async function openRepeatIt(context: Context, launchContext: unknown) {
       selectedDevice = selection.deviceName;
       selectedInsertPosition = selection.insertPosition ?? selectedInsertPosition;
       selectedTrackScope = selection.trackScope ?? selectedTrackScope;
+      shouldSkipGroupTracks = selection.shouldSkipGroupTracks ?? shouldSkipGroupTracks;
       lastInsertPosition = selectedInsertPosition;
       lastTrackScope = selectedTrackScope;
       await deleteDeviceFromTracks(
         context,
-        getTargetTracks(context, launchContext, selectedTrackScope),
+        getTargetTracks(context, launchContext, selectedTrackScope, shouldSkipGroupTracks),
         selection.deviceName,
         selectedTrackScope,
       );
@@ -339,6 +349,7 @@ function parseUserOptions(value: unknown): UserOptions | null {
   const options = value as {
     isDarkModeEnabled?: unknown;
     areTooltipsEnabled?: unknown;
+    shouldSkipGroupTracks?: unknown;
     commonDeviceSlots?: unknown;
   };
 
@@ -349,6 +360,9 @@ function parseUserOptions(value: unknown): UserOptions | null {
     areTooltipsEnabled: typeof options.areTooltipsEnabled === "boolean"
       ? options.areTooltipsEnabled
       : DEFAULT_USER_OPTIONS.areTooltipsEnabled,
+    shouldSkipGroupTracks: typeof options.shouldSkipGroupTracks === "boolean"
+      ? options.shouldSkipGroupTracks
+      : DEFAULT_USER_OPTIONS.shouldSkipGroupTracks,
     commonDeviceSlots: parseCommonDeviceSlots(options.commonDeviceSlots),
   };
 }
@@ -389,12 +403,26 @@ function getTargetTracks(
   context: Context,
   launchContext: unknown,
   trackScope: TrackScope,
+  shouldSkipGroupTracks: boolean,
 ): SongTrack[] {
-  if (trackScope === "all") {
-    return context.application.song.tracks;
+  const allTracks = context.application.song.tracks;
+  const targetTracks = trackScope === "all"
+    ? allTracks
+    : getSelectedTracks(context, launchContext);
+
+  if (!shouldSkipGroupTracks) {
+    return targetTracks;
   }
 
-  return getSelectedTracks(context, launchContext);
+  return targetTracks.filter((track) => !isGroupTrack(track, allTracks));
+}
+
+function isGroupTrack(track: SongTrack, tracks: SongTrack[]) {
+  return tracks.some((candidate) => {
+    const groupTrack = candidate.groupTrack;
+
+    return groupTrack !== null && isSameObject(groupTrack, track);
+  });
 }
 
 function getSelectedTracks(context: Context, launchContext: unknown): SongTrack[] {
@@ -527,18 +555,33 @@ async function insertDevice(
 ) {
   const insertNames = [deviceName, ...(MAX_FOR_LIVE_DEVICE_PATHS[deviceName] ?? [])];
   let lastError: unknown = null;
-  const insertIndex = insertPosition === "start" ? 0 : track.devices.length;
+  const insertIndexes = getInsertIndexes(track, insertPosition);
 
   for (const insertName of insertNames) {
-    try {
-      return await track.insertDevice(insertName, insertIndex);
-    } catch (error) {
-      lastError = error;
-      console.error(`Repeat It could not add ${insertName} to ${track.name}.`, error);
+    for (const insertIndex of insertIndexes) {
+      try {
+        return await track.insertDevice(insertName, insertIndex);
+      } catch (error) {
+        lastError = error;
+      }
     }
   }
 
   throw lastError;
+}
+
+function getInsertIndexes(track: SongTrack, insertPosition: InsertPosition) {
+  if (insertPosition === "end") {
+    return [track.devices.length];
+  }
+
+  const indexes = [0];
+
+  if (track.devices.length > 0) {
+    indexes.push(1, track.devices.length);
+  }
+
+  return [...new Set(indexes)];
 }
 
 
@@ -656,6 +699,7 @@ function parseSelection(result: unknown): RepeatItSelection | null {
       url?: unknown;
       insertPosition?: unknown;
       trackScope?: unknown;
+      shouldSkipGroupTracks?: unknown;
       userOptions?: unknown;
     };
     const parsedUserOptions = parseUserOptions(selection.userOptions) ?? undefined;
@@ -677,6 +721,7 @@ function parseSelection(result: unknown): RepeatItSelection | null {
         action: "removeAll",
         insertPosition: parseInsertPosition(selection.insertPosition),
         trackScope: parseTrackScope(selection.trackScope),
+        shouldSkipGroupTracks: parseShouldSkipGroupTracks(selection.shouldSkipGroupTracks),
         userOptions: parsedUserOptions,
       };
     }
@@ -686,6 +731,7 @@ function parseSelection(result: unknown): RepeatItSelection | null {
         action: "close",
         insertPosition: parseInsertPosition(selection.insertPosition),
         trackScope: parseTrackScope(selection.trackScope),
+        shouldSkipGroupTracks: parseShouldSkipGroupTracks(selection.shouldSkipGroupTracks),
         userOptions: parsedUserOptions,
       };
     }
@@ -709,6 +755,7 @@ function parseSelection(result: unknown): RepeatItSelection | null {
       deviceName: selection.deviceName as DeviceName,
       insertPosition: parseInsertPosition(selection.insertPosition),
       trackScope: parseTrackScope(selection.trackScope),
+      shouldSkipGroupTracks: parseShouldSkipGroupTracks(selection.shouldSkipGroupTracks),
       userOptions: parsedUserOptions,
     };
 
@@ -726,6 +773,10 @@ function parseSelection(result: unknown): RepeatItSelection | null {
 
 function parseTrackScope(trackScope: unknown): TrackScope {
   return trackScope === "selected" ? "selected" : "all";
+}
+
+function parseShouldSkipGroupTracks(shouldSkipGroupTracks: unknown) {
+  return shouldSkipGroupTracks === true;
 }
 
 function parseInsertPosition(insertPosition: unknown): InsertPosition {

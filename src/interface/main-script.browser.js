@@ -36,6 +36,7 @@
       return {
         isDarkModeEnabled,
         areTooltipsEnabled,
+        shouldSkipGroupTracks,
         commonDeviceSlots,
       };
     }
@@ -52,6 +53,7 @@
         action: "close",
         insertPosition: selectedInsertPosition,
         trackScope: selectedTrackScope,
+        shouldSkipGroupTracks,
       });
     }
 
@@ -70,6 +72,7 @@ __REPEAT_IT_UPDATE_SCRIPT__
     let areTooltipsEnabled = USER_OPTIONS && USER_OPTIONS.areTooltipsEnabled === false
       ? false
       : true;
+    let shouldSkipGroupTracks = USER_OPTIONS && USER_OPTIONS.shouldSkipGroupTracks === true;
     let commonDeviceSlots = Array.isArray(USER_OPTIONS && USER_OPTIONS.commonDeviceSlots)
       ? USER_OPTIONS.commonDeviceSlots.slice(0, 11)
       : [...QUICK_DEVICES.slice(0, 8), null, null, null];
@@ -100,6 +103,7 @@ __REPEAT_IT_POPUP_SCRIPT__
         deviceConfig: action === "add" ? getDeviceConfig(deviceName) : undefined,
         insertPosition: selectedInsertPosition,
         trackScope: selectedTrackScope,
+        shouldSkipGroupTracks,
       };
 
       document.getElementById("confirm-title").textContent = action === "add"
@@ -123,6 +127,7 @@ __REPEAT_IT_POPUP_SCRIPT__
         confirmed: false,
         insertPosition: selectedInsertPosition,
         trackScope: selectedTrackScope,
+        shouldSkipGroupTracks,
       };
       document.getElementById("confirm-title").textContent = "REMOVE ALL ABLETON FX?";
       document.getElementById("confirm-copy").textContent =
@@ -365,9 +370,11 @@ __REPEAT_IT_POPUP_SCRIPT__
       const trackScopeButtons = document.querySelectorAll("[data-track-scope]");
       const darkModeToggle = document.getElementById("dark-mode-toggle");
       const tooltipsToggle = document.getElementById("tooltips-toggle");
+      const skipGroupTracksToggle = document.getElementById("skip-group-tracks-toggle");
       document.getElementById("version").textContent = `v${VERSION}`;
       darkModeToggle.checked = isDarkModeEnabled;
       tooltipsToggle.checked = areTooltipsEnabled;
+      skipGroupTracksToggle.checked = shouldSkipGroupTracks;
       applyOptions();
       if (AUTO_UPDATE_CHECK) {
         void checkForUpdates({ silent: true });
@@ -409,6 +416,10 @@ __REPEAT_IT_POPUP_SCRIPT__
       tooltipsToggle.addEventListener("change", () => {
         areTooltipsEnabled = tooltipsToggle.checked;
         applyOptions();
+      });
+
+      skipGroupTracksToggle.addEventListener("change", () => {
+        shouldSkipGroupTracks = skipGroupTracksToggle.checked;
       });
 
       for (const input of document.querySelectorAll("[data-utility-config]")) {

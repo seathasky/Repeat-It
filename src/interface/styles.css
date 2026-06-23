@@ -151,6 +151,43 @@
       background: var(--live-control-hover);
     }
 
+    .track-options-panel {
+      display: grid;
+      gap: 4px;
+    }
+
+    .track-option {
+      position: relative;
+      display: flex;
+      min-height: 22px;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid var(--live-border);
+      background: var(--live-control);
+      color: var(--live-text);
+      cursor: pointer;
+      font-size: 10.5px;
+      line-height: 1.2;
+      padding: 0 8px;
+      user-select: none;
+    }
+
+    .track-option:hover {
+      background: var(--live-control-hover);
+    }
+
+    .track-option input {
+      width: 13px;
+      height: 13px;
+      flex: 0 0 auto;
+      accent-color: var(--repeat-teal);
+    }
+
+    .track-option input:focus {
+      outline: 2px solid var(--live-accent-pressed);
+      outline-offset: 1px;
+    }
+
     .placement-button.active {
       background: var(--repeat-teal);
       color: var(--live-input);
@@ -166,6 +203,7 @@
     }
 
     body.tooltips-enabled .placement-button[data-tooltip]::after,
+    body.tooltips-enabled .track-option[data-tooltip]::after,
     body.tooltips-enabled .dropdown-action[data-tooltip]::after,
     body.tooltips-enabled .device-button[data-tooltip]::after,
     body.tooltips-enabled .remove-button[data-tooltip]::after,
@@ -194,6 +232,8 @@
 
     body.tooltips-enabled .placement-button[data-tooltip]:hover::after,
     body.tooltips-enabled .placement-button[data-tooltip]:focus::after,
+    body.tooltips-enabled .track-option[data-tooltip]:hover::after,
+    body.tooltips-enabled .track-option[data-tooltip]:focus-within::after,
     body.tooltips-enabled .dropdown-action[data-tooltip]:hover::after,
     body.tooltips-enabled .dropdown-action[data-tooltip]:focus::after,
     body.tooltips-enabled .device-button[data-tooltip]:hover::after,

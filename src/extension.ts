@@ -8,7 +8,20 @@ import {
   type Handle,
 } from "@ableton-extensions/sdk";
 
-import repeatItInterface from "./interface.html";
+import {
+  configureDevice,
+  parseDeviceConfig,
+  type DeviceConfig,
+} from "./device-config/index.js";
+import {
+  DEFAULT_COMMON_DEVICE_SLOTS,
+  DEVICE_NAMES,
+  DROPDOWN_DEVICE_NAMES,
+  MAX_FOR_LIVE_DEVICE_PATHS,
+  QUICK_DEVICE_NAMES,
+  type DeviceName,
+} from "./devices.js";
+import repeatItInterface from "./interface/index.js";
 
 const API_VERSION = "1.0.0";
 const OPEN_COMMAND_ID = "repeat-it.open";
@@ -36,87 +49,12 @@ const LOGO_MARKUP = __REPEAT_IT_LOGO_MARKUP__;
 const UPDATE_CHECK_URL = "https://api.github.com/repos/seathasky/Repeat-It/releases/latest";
 const RELEASES_URL = "https://github.com/seathasky/Repeat-It/releases";
 
-const QUICK_DEVICE_NAMES = [
-  "Utility",
-  "EQ Eight",
-  "Compressor",
-  "Glue Compressor",
-  "Limiter",
-  "Saturator",
-  "Auto Filter",
-  "Delay",
-  "Reverb",
-] as const;
-
-const DROPDOWN_DEVICE_NAMES = [
-  "Align Delay",
-  "Amp",
-  "Audio Effect Rack",
-  "Auto Pan-Tremolo",
-  "Auto Shift",
-  "Beat Repeat",
-  "Cabinet",
-  "Channel EQ",
-  "Chorus-Ensemble",
-  "Corpus",
-  "Drum Buss",
-  "Dynamic Tube",
-  "Echo",
-  "EQ Three",
-  "Erosion",
-  "Envelope Follower",
-  "External Audio Effect",
-  "Filter Delay",
-  "Gate",
-  "Grain Delay",
-  "Hybrid Reverb",
-  "LFO",
-  "Looper",
-  "Multiband Dynamics",
-  "Overdrive",
-  "Pedal",
-  "Phaser-Flanger",
-  "Redux",
-  "Resonators",
-  "Roar",
-  "Shaper",
-  "Shifter",
-  "Spectral Resonator",
-  "Spectral Time",
-  "Spectrum",
-  "Tuner",
-  "Vocoder",
-] as const;
-
-const DEVICE_NAMES = [...QUICK_DEVICE_NAMES, ...DROPDOWN_DEVICE_NAMES] as const;
-const DEFAULT_COMMON_DEVICE_SLOTS = [
-  ...QUICK_DEVICE_NAMES.slice(0, 8),
-  null,
-  null,
-  null,
-] as const;
-
-type DeviceName = (typeof DEVICE_NAMES)[number];
 type InsertPosition = "start" | "end";
 type TrackScope = "all" | "selected";
 type UserOptions = {
   isDarkModeEnabled: boolean;
   areTooltipsEnabled: boolean;
   commonDeviceSlots: (DeviceName | null)[];
-};
-const MAX_FOR_LIVE_DEVICE_PATHS: Partial<Record<string, readonly string[]>> = {
-  "Align Delay": [
-    "/Applications/Ableton Live 12 Beta.app/Contents/App-Resources/Builtin/Devices/Audio Effects/Align Delay/Ableton Folder Info/Align Delay.amxd",
-  ],
-  "Envelope Follower": [
-    "/Applications/Ableton Live 12 Beta.app/Contents/App-Resources/Builtin/Devices/Audio Effects/Envelope Follower/Ableton Folder Info/Envelope Follower.amxd",
-  ],
-  "LFO": [
-    "/Applications/Ableton Live 12 Beta.app/Contents/App-Resources/Builtin/Devices/Audio Effects/LFO/Ableton Folder Info/LFO.amxd",
-  ],
-  "Shaper": [
-    "/Applications/Ableton Live 12 Beta.app/Contents/App-Resources/Builtin/Devices/Audio Effects/Shaper/Ableton Folder Info/Shaper.amxd",
-  ],
 };
 type Context = ReturnType<typeof initialize>;
 type SongTrack = Context["application"]["song"]["tracks"][number];
@@ -125,6 +63,7 @@ type RepeatItSelection = {
 } & ({
   action: "add" | "delete";
   deviceName: DeviceName;
+  deviceConfig?: DeviceConfig;
   insertPosition?: InsertPosition;
   trackScope?: TrackScope;
 } | {
@@ -218,6 +157,7 @@ async function openRepeatIt(context: Context, launchContext: unknown) {
         selection.deviceName,
         selectedInsertPosition,
         selectedTrackScope,
+        selection.deviceConfig,
       );
     } else if (selection.action === "openUrl") {
       updateUserOptions(context, selection.userOptions);
@@ -538,6 +478,7 @@ async function insertDeviceOnTracks(
   deviceName: string,
   insertPosition: InsertPosition,
   trackScope: TrackScope,
+  deviceConfig: DeviceConfig | undefined,
 ) {
   const positionLabel = insertPosition === "start" ? "at the start of" : "at the end of";
   const trackScopeLabel = getTrackScopeLabel(trackScope, tracks.length);
@@ -558,7 +499,8 @@ async function insertDeviceOnTracks(
         signal.throwIfAborted();
 
         try {
-          await insertDevice(track, deviceName, insertPosition);
+          const device = await insertDevice(track, deviceName, insertPosition);
+          await configureDevice(device, deviceName, deviceConfig);
           inserted += 1;
         } catch (error) {
           failures.push(track.name);
@@ -598,6 +540,7 @@ async function insertDevice(
 
   throw lastError;
 }
+
 
 async function deleteDeviceFromTracks(
   context: Context,
@@ -709,6 +652,7 @@ function parseSelection(result: unknown): RepeatItSelection | null {
     const selection = parsed as {
       action?: unknown;
       deviceName?: unknown;
+      deviceConfig?: unknown;
       url?: unknown;
       insertPosition?: unknown;
       trackScope?: unknown;
@@ -757,18 +701,28 @@ function parseSelection(result: unknown): RepeatItSelection | null {
       return null;
     }
 
-    return {
+    const parsedDeviceConfig = selection.action === "add"
+      ? parseDeviceConfig(selection.deviceName as DeviceName, selection.deviceConfig)
+      : undefined;
+    const parsedSelection: RepeatItSelection = {
       action: selection.action,
       deviceName: selection.deviceName as DeviceName,
       insertPosition: parseInsertPosition(selection.insertPosition),
       trackScope: parseTrackScope(selection.trackScope),
       userOptions: parsedUserOptions,
     };
+
+    if (parsedDeviceConfig) {
+      parsedSelection.deviceConfig = parsedDeviceConfig;
+    }
+
+    return parsedSelection;
   } catch (error) {
     console.error("Repeat It could not read the selection.", error);
     return null;
   }
 }
+
 
 function parseTrackScope(trackScope: unknown): TrackScope {
   return trackScope === "selected" ? "selected" : "all";

@@ -1,0 +1,184 @@
+    <section class="popup-panel" id="options-panel" aria-label="Options" hidden>
+      <div class="popup-box">
+      <div class="popup-title">Options</div>
+      <div class="options-row">
+        <label class="option-check">
+          <input id="dark-mode-toggle" type="checkbox">
+          <span>Dark mode / Light mode</span>
+        </label>
+        <label class="option-check">
+          <input id="tooltips-toggle" type="checkbox">
+          <span>Enable tooltips</span>
+        </label>
+      </div>
+      <div class="popup-actions">
+        <button class="confirm-button" type="button" onclick="closeOptions()">Done</button>
+      </div>
+      </div>
+    </section>
+    <section class="confirm-panel" id="confirm-panel" hidden>
+      <div class="confirm-box">
+        <h2 id="confirm-title"></h2>
+        <p id="confirm-copy"></p>
+        <div class="confirm-actions">
+          <button class="confirm-button secondary" type="button" onclick="cancelPendingAction()">Cancel</button>
+          <button class="confirm-button" id="confirm-yes" type="button" onclick="runPendingAction()">Confirm</button>
+        </div>
+      </div>
+    </section>
+    <section class="popup-panel" id="processing-panel" hidden>
+      <div class="popup-box">
+        <div class="popup-title">Processing</div>
+        <p id="processing-copy">Applying changes…</p>
+      </div>
+    </section>
+    <section class="popup-panel" id="device-config-panel" aria-label="Device configuration" hidden>
+      <div class="popup-box">
+        <div class="popup-title" id="device-config-title">Utility</div>
+        <div id="utility-config-fields">
+          <div class="config-grid">
+            <label class="config-field">
+              Gain (dB)
+              <input id="utility-gain" data-utility-config type="number" min="-35" max="35" step="0.1">
+            </label>
+            <label class="config-field">
+              Width (%)
+              <input id="utility-width" data-utility-config type="number" min="0" max="400" step="1">
+            </label>
+          </div>
+          <div class="config-checks">
+            <label class="config-check">
+              <input id="utility-mono" data-utility-config type="checkbox">
+              <span>Mono</span>
+            </label>
+            <label class="config-check">
+              <input id="utility-phase-left" data-utility-config type="checkbox">
+              <span>Phase Invert Left</span>
+            </label>
+            <label class="config-check">
+              <input id="utility-phase-right" data-utility-config type="checkbox">
+              <span>Phase Invert Right</span>
+            </label>
+          </div>
+        </div>
+        <div id="eq8-config-fields" hidden>
+          <label class="config-field">
+            Cut Low End
+            <select id="eq8-cut-low" data-eq8-config>
+              <option value="off">Off</option>
+              <option value="30">30 Hz</option>
+              <option value="60">60 Hz</option>
+              <option value="80">80 Hz</option>
+              <option value="100">100 Hz</option>
+              <option value="120">120 Hz</option>
+              <option value="custom">Custom</option>
+            </select>
+          </label>
+          <label class="config-field disabled" id="eq8-cut-low-custom-field">
+            Custom Low Cut (Hz)
+            <input id="eq8-cut-low-custom" data-eq8-config type="number" min="10" max="1000" step="1">
+          </label>
+          <label class="config-field">
+            Cut High End
+            <select id="eq8-cut-high" data-eq8-config>
+              <option value="off">Off</option>
+              <option value="18000">18 kHz</option>
+              <option value="16000">16 kHz</option>
+              <option value="12000">12 kHz</option>
+              <option value="custom">Custom</option>
+            </select>
+          </label>
+          <label class="config-field disabled" id="eq8-cut-high-custom-field">
+            Custom High Cut (Hz)
+            <input id="eq8-cut-high-custom" data-eq8-config type="number" min="1000" max="22050" step="100">
+          </label>
+        </div>
+        <div id="saturator-config-fields" hidden>
+          <div class="config-grid">
+            <label class="config-field">
+              Drive (dB)
+              <input id="saturator-drive" data-saturator-config type="number" min="0" max="36" step="0.1">
+            </label>
+            <label class="config-check">
+              <input id="saturator-soft-clip" data-saturator-config type="checkbox">
+              <span>Soft Clip</span>
+            </label>
+          </div>
+        </div>
+        <div id="reverb-config-fields" hidden>
+          <div class="config-grid">
+            <label class="config-field">
+              Dry/Wet (%)
+              <input id="reverb-dry-wet" data-reverb-config type="number" min="0" max="100" step="1">
+            </label>
+            <label class="config-field">
+              Decay Time (s)
+              <input id="reverb-decay-time" data-reverb-config type="number" min="0" max="10" step="0.1">
+            </label>
+          </div>
+          <div class="preset-row">
+            <button class="confirm-button secondary preset-button" type="button" onclick="applyReverbPreset('small-room')">Small Room</button>
+            <button class="confirm-button secondary preset-button" type="button" onclick="applyReverbPreset('medium-room')">Medium Room</button>
+          </div>
+          <div class="preset-row">
+            <button class="confirm-button secondary preset-button" type="button" onclick="applyReverbPreset('large-hall')">Large Hall</button>
+            <button class="confirm-button secondary preset-button" type="button" onclick="applyReverbPreset('plate-style')">Plate Style</button>
+          </div>
+        </div>
+        <div id="delay-config-fields" hidden>
+          <div class="config-grid">
+            <label class="config-check">
+              <input id="delay-link-times" data-delay-config type="checkbox" onchange="onDelayLinkChange()">
+              <span>Link Times</span>
+            </label>
+            <div></div>
+            <label class="config-field">
+              Dry/Wet (%)
+              <input id="delay-dry-wet" data-delay-config type="number" min="0" max="100" step="1">
+            </label>
+            <label class="config-field">
+              Left Time
+              <select id="delay-left-time" data-delay-config onchange="onDelayLeftTimeChange()">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="8">8</option>
+                <option value="16">16</option>
+              </select>
+            </label>
+            <div></div>
+            <label class="config-field">
+              Right Time
+              <select id="delay-right-time" data-delay-config onchange="onDelayRightTimeChange()">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="8">8</option>
+                <option value="16">16</option>
+              </select>
+            </label>
+          </div>
+          <div class="preset-row">
+            <button class="confirm-button secondary preset-button" type="button" onclick="applyDelayPreset('quarter-note')">Quarter Note Delay</button>
+            <button class="confirm-button secondary preset-button" type="button" onclick="applyDelayPreset('eighth-note')">Eighth Note Delay</button>
+          </div>
+          <div class="preset-row">
+            <button class="confirm-button secondary preset-button" type="button" onclick="applyDelayPreset('sixteenth-note')">Sixteenth Note Delay</button>
+            <button class="confirm-button secondary preset-button" type="button" onclick="applyDelayPreset('ping-pong-wide')">Ping Pong Wide</button>
+          </div>
+          <div class="preset-row">
+            <button class="confirm-button secondary preset-button" type="button" onclick="applyDelayPreset('wide-throw')">Wide Throw Delay</button>
+            <button class="confirm-button secondary preset-button" type="button" onclick="applyDelayPreset('triplet-groove')">Triplet Groove</button>
+          </div>
+        </div>
+        <div class="popup-actions">
+          <button class="confirm-button accept" type="button" onclick="closeDeviceConfig()">Accept</button>
+        </div>
+      </div>
+    </section>

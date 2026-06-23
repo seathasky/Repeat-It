@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Repeat It</title>
+  <script>
+__REPEAT_IT_SCRIPT__
+  </script>
+  <style>
+__REPEAT_IT_STYLES__
+  </style>
+</head>
+
+<body>
+  <main class="shell">
+    <header class="header">
+      <div class="title-group">
+        <div class="brand-row">
+          <div class="brand-logo" aria-label="Repeat It" role="img">__REPEAT_IT_LOGO_MARKUP__</div>
+          <div class="version" id="version"></div>
+        </div>
+        <p class="description">Add or remove Live audio effects across tracks at once.</p>
+      </div>
+    </header>
+
+    <section class="workbench">
+      <section class="common-panel" aria-label="Common devices">
+        <div class="section-title">Common effects/tools</div>
+        <section class="device-list" id="device-list" aria-label="Devices"></section>
+      </section>
+
+      <section class="controls-panel" aria-label="Device controls">
+        <section class="placement-panel" aria-label="Track scope">
+          <div class="section-title">Apply to</div>
+          <div class="placement-toggle">
+            <button class="placement-button" type="button" data-track-scope="all" data-tooltip="All tracks applies everywhere." aria-pressed="false">All tracks</button>
+            <button class="placement-button" type="button" data-track-scope="selected" data-tooltip="Selected tracks uses tracks selected before opening." aria-pressed="false">Selected tracks</button>
+          </div>
+        </section>
+
+        <section class="placement-panel" aria-label="Insert position">
+          <div class="section-title">Insert position</div>
+          <div class="placement-toggle">
+            <button class="placement-button" type="button" data-insert-position="start" data-tooltip="Start inserts plugin at start of chain." aria-pressed="false">Start</button>
+            <button class="placement-button" type="button" data-insert-position="end" data-tooltip="End inserts plugin at end of chain." aria-pressed="false">End</button>
+          </div>
+        </section>
+
+        <section class="action-panel" aria-label="Selected device actions">
+          <div class="selected-device-title">Selected device</div>
+          <div class="selected-device-row">
+            <div class="selected-device-label" id="selected-device-label"></div>
+            <button class="configure-button" id="configure-selected-button" type="button" onclick="openDeviceConfig()" hidden>Configure</button>
+          </div>
+        </section>
+
+        <div class="dropdown-actions">
+          <button class="dropdown-action" id="add-selected-button" type="button" data-tooltip="Adds the selected device using the current Apply to and Insert position choices." onclick="confirmSelectedDevice('add')">Add</button>
+          <button class="dropdown-action delete" id="delete-selected-button" type="button" data-tooltip="Removes every matching selected device using the current Apply to choice." onclick="confirmSelectedDevice('delete')">Remove</button>
+        </div>
+        <div class="danger-actions">
+          <button class="remove-button" type="button" data-tooltip="Removes every supported Ableton FX device using the current Apply to choice." onclick="confirmRemoveAllAbletonFX()">Remove all Ableton FX</button>
+        </div>
+      </section>
+    </section>
+    <section class="bottom-actions" aria-label="Window actions">
+      <div class="update">
+        <button class="update-button" id="update-button" type="button" data-tooltip="Checks GitHub for the latest Repeat It release." onclick="checkForUpdates()">Check for updates</button>
+        <div class="update-status" id="update-status"></div>
+      </div>
+      <div class="close-panel">
+        <div class="close-stack">
+          <button class="options-button" type="button" data-tooltip="Opens Repeat It options." onclick="openOptions()" aria-label="Options">&#9881;</button>
+          <button class="close-button cancel-button" type="button" data-tooltip="Closes Repeat It and remembers your current choices." onclick="closeRepeatIt()">CLOSE</button>
+        </div>
+      </div>
+    </section>
+__REPEAT_IT_POPUPS__
+  </main>
+</body>
+
+</html>

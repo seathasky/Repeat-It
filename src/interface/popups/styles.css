@@ -1,0 +1,194 @@
+    .popup-panel {
+      position: fixed;
+      inset: 0;
+      z-index: 4;
+      display: grid;
+      place-items: center;
+      background: hsla(0, 0%, 8%, 0.72);
+      padding: 18px;
+    }
+
+    .popup-panel[hidden] {
+      display: none;
+    }
+
+    .popup-box {
+      width: min(100%, 330px);
+      display: grid;
+      gap: 10px;
+      border: 1px solid var(--live-border);
+      background: var(--live-panel);
+      padding: 14px;
+    }
+
+    .popup-title {
+      color: var(--repeat-teal);
+      font-size: 14px;
+      line-height: 1.2;
+      text-transform: uppercase;
+    }
+
+    .config-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .config-field {
+      display: grid;
+      gap: 3px;
+      color: var(--live-muted);
+      font-size: 10.5px;
+      line-height: 1.15;
+    }
+
+    .config-field input,
+    .config-field select {
+      width: 100%;
+      min-height: 24px;
+      border: 1px solid var(--live-border);
+      background: var(--live-input);
+      color: var(--live-text);
+      font: inherit;
+      padding: 0 6px;
+    }
+
+    .config-field.disabled {
+      opacity: 0.45;
+    }
+
+    .config-field input:disabled {
+      cursor: default;
+    }
+
+    .config-checks {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 6px;
+    }
+
+    .config-check {
+      display: flex;
+      min-height: 22px;
+      align-items: center;
+      gap: 5px;
+      color: var(--live-text);
+      font-size: 10.5px;
+      line-height: 1.1;
+    }
+
+    .config-check input {
+      width: 13px;
+      height: 13px;
+      accent-color: var(--repeat-teal);
+    }
+
+    .preset-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .preset-button {
+      min-width: 110px;
+      flex: 1 1 auto;
+      text-align: center;
+    }
+
+    .popup-actions {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .options-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .option-check {
+      display: flex;
+      min-height: 34px;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--live-border);
+      background: var(--live-control);
+      color: var(--live-text);
+      padding: 0 10px;
+    }
+
+    .option-check input {
+      width: 14px;
+      height: 14px;
+      accent-color: var(--repeat-teal);
+    }
+
+    .confirm-panel {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: hsla(0, 0%, 8%, 0.72);
+      padding: 18px;
+    }
+
+    .confirm-panel[hidden] {
+      display: none;
+    }
+
+    .confirm-box {
+      width: min(100%, 300px);
+      border: 1px solid var(--live-border);
+      background: var(--live-panel);
+      padding: 14px;
+    }
+
+    .confirm-box h2 {
+      font-size: 15px;
+      letter-spacing: 0;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+
+    .confirm-box p {
+      color: var(--live-muted);
+      font-size: 11.5px;
+      line-height: 1.35;
+      margin-bottom: 14px;
+    }
+
+    .confirm-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .confirm-button {
+      min-height: 28px;
+      border: 1px solid var(--live-border);
+      background: var(--live-accent);
+      color: var(--live-input);
+      cursor: pointer;
+      font: inherit;
+      padding: 0 12px;
+    }
+
+    .confirm-button.secondary {
+      background: var(--live-control);
+      color: var(--live-text);
+    }
+
+    .confirm-button.danger {
+      background: var(--live-danger);
+      color: var(--live-text);
+    }
+
+    .confirm-button.accept {
+      background: var(--repeat-teal);
+      color: var(--live-input);
+    }
+
+    .confirm-button.accept:hover {
+      background: var(--repeat-teal-hover);
+    }

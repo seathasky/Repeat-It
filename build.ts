@@ -20,7 +20,9 @@ await esbuild.build({
     __REPEAT_IT_LOGO_MARKUP__: JSON.stringify(logoMarkup),
   },
   loader: {
+    ".css": "text",
     ".html": "text",
+    ".js": "text",
   },
   sourcesContent: false,
   logLevel: "info",

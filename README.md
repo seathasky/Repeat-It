@@ -2,7 +2,7 @@
 
 An Ableton Live Extension for adding or removing Ableton audio effects across tracks.
 
-<img src="https://i.imgur.com/dTMJhGk.png" alt="Repeat It" width="406">
+<img src="https://i.imgur.com/LAVlVig.png" alt="Repeat It" width="406">
 
 ## What it does
 

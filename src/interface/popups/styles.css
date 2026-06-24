@@ -21,6 +21,12 @@
       padding: 14px;
     }
 
+    #options-panel .popup-box {
+      width: min(100%, 430px);
+      gap: 12px;
+      padding: 18px;
+    }
+
     .popup-title {
       color: var(--repeat-teal);
       font-size: 14px;
@@ -107,9 +113,36 @@
       gap: 8px;
     }
 
+    .option-field {
+      display: grid;
+      min-height: 44px;
+      align-content: center;
+      gap: 4px;
+      border: 1px solid var(--live-border);
+      background: var(--live-control);
+      color: var(--live-text);
+      padding: 7px 10px;
+    }
+
+    .option-field span {
+      color: var(--live-muted);
+      font-size: 10.5px;
+      line-height: 1;
+    }
+
+    .option-field select {
+      width: 100%;
+      min-height: 24px;
+      border: 1px solid var(--live-border);
+      background: var(--live-input);
+      color: var(--live-text);
+      font: inherit;
+      padding: 0 6px;
+    }
+
     .option-check {
       display: flex;
-      min-height: 34px;
+      min-height: 44px;
       align-items: center;
       gap: 8px;
       border: 1px solid var(--live-border);

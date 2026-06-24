@@ -34,6 +34,7 @@
 
     function getUserOptions() {
       return {
+        themeName,
         isDarkModeEnabled,
         areTooltipsEnabled,
         shouldSkipGroupTracks,
@@ -58,7 +59,9 @@
     }
 
     function applyOptions() {
-      document.body.classList.toggle("light-mode", !isDarkModeEnabled);
+      document.body.classList.remove("theme-dark", "theme-light", "theme-ocean", "theme-moss", "theme-sunset", "theme-retro-neon", "theme-autumn", "theme-winter", "theme-halloween", "light-mode");
+      document.body.classList.add(`theme-${themeName}`);
+      document.body.classList.toggle("light-mode", themeName === "light");
       document.body.classList.toggle("tooltips-enabled", areTooltipsEnabled);
     }
 
@@ -66,9 +69,13 @@ __REPEAT_IT_UPDATE_SCRIPT__
     let pendingAction = null;
     let isOptionsOpen = false;
     let isDeviceConfigOpen = false;
-    let isDarkModeEnabled = USER_OPTIONS && USER_OPTIONS.isDarkModeEnabled === false
-      ? false
-      : true;
+    const THEME_NAMES = new Set(["dark", "light", "ocean", "moss", "sunset", "retro-neon", "autumn", "winter", "halloween"]);
+    let themeName = USER_OPTIONS && THEME_NAMES.has(USER_OPTIONS.themeName)
+      ? USER_OPTIONS.themeName
+      : USER_OPTIONS && USER_OPTIONS.isDarkModeEnabled === false
+        ? "light"
+        : "dark";
+    let isDarkModeEnabled = themeName !== "light";
     let areTooltipsEnabled = USER_OPTIONS && USER_OPTIONS.areTooltipsEnabled === false
       ? false
       : true;
@@ -368,11 +375,11 @@ __REPEAT_IT_POPUP_SCRIPT__
     document.addEventListener("DOMContentLoaded", () => {
       const insertPositionButtons = document.querySelectorAll("[data-insert-position]");
       const trackScopeButtons = document.querySelectorAll("[data-track-scope]");
-      const darkModeToggle = document.getElementById("dark-mode-toggle");
+      const themeSelect = document.getElementById("theme-select");
       const tooltipsToggle = document.getElementById("tooltips-toggle");
       const skipGroupTracksToggle = document.getElementById("skip-group-tracks-toggle");
       document.getElementById("version").textContent = `v${VERSION}`;
-      darkModeToggle.checked = isDarkModeEnabled;
+      themeSelect.value = themeName;
       tooltipsToggle.checked = areTooltipsEnabled;
       skipGroupTracksToggle.checked = shouldSkipGroupTracks;
       applyOptions();
@@ -408,8 +415,9 @@ __REPEAT_IT_POPUP_SCRIPT__
         });
       }
 
-      darkModeToggle.addEventListener("change", () => {
-        isDarkModeEnabled = darkModeToggle.checked;
+      themeSelect.addEventListener("change", () => {
+        themeName = THEME_NAMES.has(themeSelect.value) ? themeSelect.value : "dark";
+        isDarkModeEnabled = themeName !== "light";
         applyOptions();
       });
 

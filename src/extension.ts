@@ -27,6 +27,10 @@ const API_VERSION = "1.0.0";
 const OPEN_COMMAND_ID = "repeat-it.open";
 declare const __REPEAT_IT_BUILD_VERSION__: string;
 declare const __REPEAT_IT_LOGO_MARKUP__: string;
+declare const __REPEAT_IT_AUTUMN_MARKUP__: string;
+declare const __REPEAT_IT_HALLOWEEN_MARKUP__: string;
+declare const __REPEAT_IT_RETRO_MARKUP__: string;
+declare const __REPEAT_IT_SNOWFLAKE_MARKUP__: string;
 declare const process: {
   env?: Record<string, string | undefined>;
   platform: string;
@@ -46,12 +50,17 @@ declare function require(moduleName: "node:path"): {
 };
 const EXTENSION_VERSION = __REPEAT_IT_BUILD_VERSION__;
 const LOGO_MARKUP = __REPEAT_IT_LOGO_MARKUP__;
+const AUTUMN_MARKUP = __REPEAT_IT_AUTUMN_MARKUP__;
+const HALLOWEEN_MARKUP = __REPEAT_IT_HALLOWEEN_MARKUP__;
+const RETRO_MARKUP = __REPEAT_IT_RETRO_MARKUP__;
+const SNOWFLAKE_MARKUP = __REPEAT_IT_SNOWFLAKE_MARKUP__;
 const UPDATE_CHECK_URL = "https://api.github.com/repos/seathasky/Repeat-It/releases/latest";
 const RELEASES_URL = "https://github.com/seathasky/Repeat-It/releases";
 
 type InsertPosition = "start" | "end";
 type TrackScope = "all" | "selected";
 type UserOptions = {
+  themeName: string;
   isDarkModeEnabled: boolean;
   areTooltipsEnabled: boolean;
   shouldSkipGroupTracks: boolean;
@@ -84,6 +93,7 @@ type RepeatItSelection = {
 });
 
 const DEFAULT_USER_OPTIONS: UserOptions = {
+  themeName: "dark",
   isDarkModeEnabled: true,
   areTooltipsEnabled: true,
   shouldSkipGroupTracks: false,
@@ -218,6 +228,10 @@ async function showRepeatItDialog(
     .replace("__REPEAT_IT_AUTO_UPDATE_CHECK__", JSON.stringify(shouldRunAutoUpdateCheck))
     .replace("__REPEAT_IT_USER_OPTIONS__", JSON.stringify(userOptions))
     .replace("__REPEAT_IT_LOGO_MARKUP__", LOGO_MARKUP)
+    .replace("__REPEAT_IT_AUTUMN_MARKUP__", AUTUMN_MARKUP)
+    .replace("__REPEAT_IT_HALLOWEEN_MARKUP__", HALLOWEEN_MARKUP)
+    .replace("__REPEAT_IT_RETRO_MARKUP__", RETRO_MARKUP)
+    .replace("__REPEAT_IT_SNOWFLAKE_MARKUP__", SNOWFLAKE_MARKUP)
     .replace("__REPEAT_IT_ACTIVE_DEVICE_NAMES__", JSON.stringify(getActiveDeviceNames(context)))
     .replace("__REPEAT_IT_VERSION__", JSON.stringify(EXTENSION_VERSION))
     .replace("__REPEAT_IT_UPDATE_CHECK_URL__", JSON.stringify(UPDATE_CHECK_URL))
@@ -347,16 +361,23 @@ function parseUserOptions(value: unknown): UserOptions | null {
   }
 
   const options = value as {
+    themeName?: unknown;
     isDarkModeEnabled?: unknown;
     areTooltipsEnabled?: unknown;
     shouldSkipGroupTracks?: unknown;
     commonDeviceSlots?: unknown;
   };
+  const migratedThemeName = typeof options.themeName === "string"
+    ? parseThemeName(options.themeName)
+    : typeof options.isDarkModeEnabled === "boolean" && !options.isDarkModeEnabled
+      ? "light"
+      : DEFAULT_USER_OPTIONS.themeName;
 
   return {
+    themeName: migratedThemeName,
     isDarkModeEnabled: typeof options.isDarkModeEnabled === "boolean"
       ? options.isDarkModeEnabled
-      : DEFAULT_USER_OPTIONS.isDarkModeEnabled,
+      : migratedThemeName !== "light",
     areTooltipsEnabled: typeof options.areTooltipsEnabled === "boolean"
       ? options.areTooltipsEnabled
       : DEFAULT_USER_OPTIONS.areTooltipsEnabled,
@@ -365,6 +386,12 @@ function parseUserOptions(value: unknown): UserOptions | null {
       : DEFAULT_USER_OPTIONS.shouldSkipGroupTracks,
     commonDeviceSlots: parseCommonDeviceSlots(options.commonDeviceSlots),
   };
+}
+
+function parseThemeName(value: string): string {
+  return ["dark", "light", "ocean", "moss", "sunset", "retro-neon", "autumn", "winter", "halloween"].includes(value)
+    ? value
+    : DEFAULT_USER_OPTIONS.themeName;
 }
 
 function parseCommonDeviceSlots(value: unknown): (DeviceName | null)[] {

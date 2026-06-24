@@ -37,12 +37,14 @@
     }
 
     body {
+      position: relative;
       height: 100%;
       overflow: hidden;
       padding: 14px;
       background: var(--live-bg);
     }
 
+    body.theme-light,
     body.light-mode {
       --live-bg: hsl(0, 0%, 96%);
       --live-panel: hsl(0, 0%, 90%);
@@ -55,11 +57,248 @@
       --live-active-text: hsl(0, 0%, 100%);
     }
 
+    body.theme-ocean {
+      --live-bg: hsl(202, 29%, 18%);
+      --live-panel: hsl(199, 25%, 24%);
+      --live-control: hsl(205, 34%, 13%);
+      --live-control-hover: hsl(196, 30%, 30%);
+      --live-input: hsl(208, 38%, 10%);
+      --live-border: hsl(206, 45%, 7%);
+      --live-text: hsl(188, 32%, 88%);
+      --live-muted: hsl(188, 17%, 64%);
+      --live-accent: hsl(36, 100%, 58%);
+      --live-accent-pressed: hsl(36, 100%, 68%);
+      --live-active: hsl(160, 69%, 55%);
+      --live-active-hover: hsl(160, 58%, 47%);
+      --live-active-text: hsl(205, 44%, 10%);
+      --repeat-teal: hsl(183, 82%, 47%);
+      --repeat-teal-hover: hsl(183, 78%, 55%);
+    }
+
+    body.theme-moss {
+      --live-bg: hsl(90, 14%, 22%);
+      --live-panel: hsl(83, 13%, 28%);
+      --live-control: hsl(76, 12%, 15%);
+      --live-control-hover: hsl(84, 15%, 34%);
+      --live-input: hsl(78, 16%, 10%);
+      --live-border: hsl(80, 20%, 7%);
+      --live-text: hsl(67, 20%, 88%);
+      --live-muted: hsl(65, 12%, 64%);
+      --live-accent: hsl(28, 96%, 59%);
+      --live-accent-pressed: hsl(28, 96%, 68%);
+      --live-active: hsl(132, 48%, 62%);
+      --live-active-hover: hsl(132, 38%, 54%);
+      --live-active-text: hsl(96, 24%, 10%);
+      --repeat-teal: hsl(171, 58%, 46%);
+      --repeat-teal-hover: hsl(171, 56%, 53%);
+    }
+
+    body.theme-sunset {
+      --live-bg: hsl(335, 16%, 22%);
+      --live-panel: hsl(334, 16%, 28%);
+      --live-control: hsl(334, 20%, 14%);
+      --live-control-hover: hsl(340, 18%, 34%);
+      --live-input: hsl(334, 24%, 10%);
+      --live-border: hsl(334, 26%, 7%);
+      --live-text: hsl(24, 24%, 88%);
+      --live-muted: hsl(24, 13%, 65%);
+      --live-accent: hsl(32, 100%, 59%);
+      --live-accent-pressed: hsl(32, 100%, 68%);
+      --live-active: hsl(177, 56%, 56%);
+      --live-active-hover: hsl(177, 47%, 48%);
+      --live-active-text: hsl(334, 24%, 10%);
+      --repeat-teal: hsl(184, 78%, 48%);
+      --repeat-teal-hover: hsl(184, 76%, 56%);
+    }
+
+    body.theme-retro-neon {
+      --live-bg: hsl(256, 35%, 8%);
+      --live-panel: hsl(258, 30%, 13%);
+      --live-control: hsl(284, 58%, 17%);
+      --live-control-hover: hsl(292, 65%, 27%);
+      --live-input: hsl(240, 38%, 6%);
+      --live-border: hsl(181, 100%, 48%);
+      --live-text: hsl(178, 100%, 82%);
+      --live-muted: hsl(310, 100%, 76%);
+      --live-accent: hsl(318, 100%, 58%);
+      --live-accent-pressed: hsl(318, 100%, 70%);
+      --live-active: hsl(174, 100%, 50%);
+      --live-active-hover: hsl(174, 100%, 42%);
+      --live-active-text: hsl(258, 44%, 8%);
+      --live-danger: hsl(336, 100%, 46%);
+      --live-danger-hover: hsl(336, 100%, 38%);
+      --repeat-teal: hsl(174, 100%, 50%);
+      --repeat-teal-hover: hsl(174, 100%, 60%);
+    }
+
+    body.theme-retro-neon .shell,
+    body.theme-retro-neon .popup-box,
+    body.theme-retro-neon .confirm-box {
+      box-shadow: 0 0 0 1px hsla(318, 100%, 58%, 0.42), 0 0 18px hsla(174, 100%, 50%, 0.18);
+    }
+
+    body.theme-retro-neon .placement-button.active,
+    body.theme-retro-neon .confirm-button.accept {
+      box-shadow: 0 0 12px hsla(174, 100%, 50%, 0.42);
+    }
+
+    body.theme-retro-neon .confirm-button,
+    body.theme-retro-neon .dropdown-action {
+      box-shadow: 0 0 10px hsla(318, 100%, 58%, 0.22);
+    }
+
+    body.theme-autumn {
+      --live-bg: hsl(39, 61%, 91%);
+      --live-panel: hsl(35, 48%, 82%);
+      --live-control: hsl(35, 41%, 72%);
+      --live-control-hover: hsl(29, 81%, 58%);
+      --live-input: hsl(42, 58%, 94%);
+      --live-border: hsl(29, 35%, 34%);
+      --live-text: hsl(20, 47%, 16%);
+      --live-muted: hsl(61, 32%, 34%);
+      --live-accent: hsl(27, 92%, 51%);
+      --live-accent-pressed: hsl(16, 72%, 48%);
+      --live-active: hsl(61, 33%, 35%);
+      --live-active-hover: hsl(61, 30%, 42%);
+      --live-active-text: hsl(42, 58%, 94%);
+      --live-danger: hsl(13, 72%, 47%);
+      --live-danger-hover: hsl(13, 72%, 38%);
+      --repeat-teal: hsl(27, 92%, 51%);
+      --repeat-teal-hover: hsl(16, 72%, 48%);
+    }
+
+    body.theme-halloween {
+      --live-bg: hsl(266, 41%, 8%);
+      --live-panel: hsl(270, 34%, 13%);
+      --live-control: hsl(275, 45%, 18%);
+      --live-control-hover: hsl(25, 87%, 33%);
+      --live-input: hsl(268, 43%, 7%);
+      --live-border: hsl(27, 100%, 52%);
+      --live-text: hsl(39, 84%, 88%);
+      --live-muted: hsl(92, 69%, 64%);
+      --live-accent: hsl(27, 100%, 52%);
+      --live-accent-pressed: hsl(21, 100%, 62%);
+      --live-active: hsl(92, 69%, 57%);
+      --live-active-hover: hsl(92, 62%, 48%);
+      --live-active-text: hsl(268, 43%, 7%);
+      --live-danger: hsl(3, 74%, 48%);
+      --live-danger-hover: hsl(3, 68%, 39%);
+      --repeat-teal: hsl(27, 100%, 52%);
+      --repeat-teal-hover: hsl(21, 100%, 62%);
+    }
+
+    body.theme-winter {
+      --live-bg: hsl(210, 32%, 16%);
+      --live-panel: hsl(210, 26%, 23%);
+      --live-control: hsl(214, 34%, 12%);
+      --live-control-hover: hsl(207, 32%, 31%);
+      --live-input: hsl(216, 38%, 9%);
+      --live-border: hsl(205, 42%, 7%);
+      --live-text: hsl(198, 42%, 91%);
+      --live-muted: hsl(199, 26%, 70%);
+      --live-accent: hsl(201, 92%, 69%);
+      --live-accent-pressed: hsl(201, 100%, 79%);
+      --live-active: hsl(184, 72%, 66%);
+      --live-active-hover: hsl(184, 60%, 56%);
+      --live-active-text: hsl(215, 42%, 10%);
+      --live-danger: hsl(350, 63%, 55%);
+      --live-danger-hover: hsl(350, 55%, 46%);
+      --repeat-teal: hsl(184, 78%, 63%);
+      --repeat-teal-hover: hsl(184, 80%, 72%);
+    }
+
+    .retro-background,
+    .autumn-leaves,
+    .halloween-jackolantern,
+    .winter-snowflake {
+      position: fixed;
+      z-index: 0;
+      display: none;
+      pointer-events: none;
+    }
+
+    .retro-background {
+      inset: 0;
+      overflow: hidden;
+      opacity: 0.2;
+    }
+
+    body.theme-retro-neon .retro-background {
+      display: block;
+    }
+
+    .retro-background svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      transform: scale(1.08);
+      transform-origin: center;
+    }
+
+    .autumn-leaves,
+    .halloween-jackolantern,
+    .winter-snowflake {
+      max-width: 82vw;
+    }
+
+    .autumn-leaves {
+      right: -54px;
+      bottom: -58px;
+      width: 300px;
+      opacity: 0.18;
+    }
+
+    .halloween-jackolantern {
+      right: -34px;
+      bottom: -44px;
+      width: 310px;
+      color: hsl(27, 100%, 52%);
+      opacity: 0.16;
+    }
+
+    .winter-snowflake {
+      right: -86px;
+      bottom: -96px;
+      width: 420px;
+      color: hsl(198, 100%, 88%);
+      opacity: 0.1;
+    }
+
+    body.theme-autumn .autumn-leaves,
+    body.theme-halloween .halloween-jackolantern,
+    body.theme-winter .winter-snowflake {
+      display: block;
+    }
+
+    .autumn-leaves svg,
+    .halloween-jackolantern svg,
+    .winter-snowflake svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .autumn-leaves svg {
+      filter: drop-shadow(0 0 16px hsla(31, 100%, 58%, 0.18));
+    }
+
+    .halloween-jackolantern svg {
+      filter: drop-shadow(0 0 18px hsla(27, 100%, 52%, 0.22));
+    }
+
+    .winter-snowflake svg {
+      filter: drop-shadow(0 0 18px hsla(190, 100%, 78%, 0.2));
+    }
+
+    body.theme-light .dropdown-action,
+    body.theme-autumn .dropdown-action,
     body.light-mode .dropdown-action {
       color: hsl(0, 0%, 5%);
     }
 
     .shell {
+      position: relative;
+      z-index: 1;
       display: flex;
       min-height: calc(100vh - 28px);
       flex-direction: column;

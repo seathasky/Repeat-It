@@ -144,6 +144,18 @@ __REPEAT_IT_POPUP_SCRIPT__
       document.getElementById("confirm-panel").hidden = false;
     }
 
+    function confirmSetAllFadersToUnity() {
+      pendingAction = {
+        action: "setAllFadersToUnity",
+      };
+      document.getElementById("confirm-title").textContent = "Unity all faders?";
+      document.getElementById("confirm-copy").textContent =
+        "This will set every track, return track, and main track fader to unity. Utility gain devices will not be changed.";
+      document.getElementById("confirm-yes").textContent = "Set to unity";
+      document.getElementById("confirm-yes").className = "confirm-button";
+      document.getElementById("confirm-panel").hidden = false;
+    }
+
     function confirmRemoveCommonDevice(slotIndex) {
       const deviceName = commonDeviceSlots[slotIndex];
 

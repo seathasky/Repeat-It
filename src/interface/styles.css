@@ -444,6 +444,7 @@
     body.tooltips-enabled .placement-button[data-tooltip]::after,
     body.tooltips-enabled .track-option[data-tooltip]::after,
     body.tooltips-enabled .dropdown-action[data-tooltip]::after,
+    body.tooltips-enabled .tool-button[data-tooltip]::after,
     body.tooltips-enabled .device-button[data-tooltip]::after,
     body.tooltips-enabled .remove-button[data-tooltip]::after,
     body.tooltips-enabled .update-button[data-tooltip]::after,
@@ -475,6 +476,8 @@
     body.tooltips-enabled .track-option[data-tooltip]:focus-within::after,
     body.tooltips-enabled .dropdown-action[data-tooltip]:hover::after,
     body.tooltips-enabled .dropdown-action[data-tooltip]:focus::after,
+    body.tooltips-enabled .tool-button[data-tooltip]:hover::after,
+    body.tooltips-enabled .tool-button[data-tooltip]:focus::after,
     body.tooltips-enabled .device-button[data-tooltip]:hover::after,
     body.tooltips-enabled .device-button[data-tooltip]:focus::after,
     body.tooltips-enabled .remove-button[data-tooltip]:hover::after,
@@ -522,6 +525,7 @@
     .device-button,
     .common-remove-button,
     .dropdown-action,
+    .tool-button,
     .cancel-button {
       border: 1px solid var(--live-border);
       background: var(--live-control);
@@ -536,6 +540,7 @@
     .device-button:hover,
     .common-remove-button:hover,
     .dropdown-action:hover,
+    .tool-button:hover,
     .cancel-button:hover {
       background: var(--live-control-hover);
     }
@@ -629,17 +634,17 @@
       gap: 6px;
     }
 
-    .danger-actions {
+    .other-tools-panel {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      column-gap: 6px;
-      row-gap: 8px;
+      gap: 6px;
+      border-top: 1px solid var(--live-border);
+      padding-top: 8px;
     }
 
-    .danger-actions::before {
-      content: "";
-      grid-column: 2;
-      border-top: 1px solid var(--live-border);
+    .other-tools-actions {
+      display: grid;
+      justify-items: start;
+      gap: 6px;
     }
 
     .dropdown-action {
@@ -729,9 +734,22 @@ __REPEAT_IT_POPUP_STYLES__
       color: var(--live-text);
     }
 
+    .tool-button {
+      position: relative;
+      width: 160px;
+      min-height: 24px;
+      text-align: center;
+    }
+
+    .tool-button:hover {
+      border-color: var(--live-active);
+      background: hsl(111, 53%, 86%);
+      color: var(--live-input);
+    }
+
     .remove-button {
       position: relative;
-      grid-column: 2;
+      width: 160px;
       height: 24px;
       align-self: start;
       border: 1px solid var(--live-border);
@@ -753,6 +771,7 @@ __REPEAT_IT_POPUP_STYLES__
     .config-field input:focus,
     .config-field select:focus,
     .dropdown-action:focus,
+    .tool-button:focus,
     .cancel-button:focus,
     .placement-button:focus {
       outline: 2px solid var(--live-accent-pressed);

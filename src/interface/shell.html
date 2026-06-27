@@ -71,9 +71,13 @@ __REPEAT_IT_STYLES__
           <button class="dropdown-action" id="add-selected-button" type="button" data-tooltip="Adds the selected device using the current Apply to and Insert position choices." onclick="confirmSelectedDevice('add')">Add</button>
           <button class="dropdown-action delete" id="delete-selected-button" type="button" data-tooltip="Removes every matching selected device using the current Apply to choice." onclick="confirmSelectedDevice('delete')">Remove</button>
         </div>
-        <div class="danger-actions">
-          <button class="remove-button" type="button" data-tooltip="Removes every supported Ableton FX device using the current Apply to choice." onclick="confirmRemoveAllAbletonFX()">Remove all Ableton FX</button>
-        </div>
+        <section class="other-tools-panel" aria-label="Other tools">
+          <div class="section-title">Other tools</div>
+          <div class="other-tools-actions">
+            <button class="tool-button" type="button" data-tooltip="Sets every track, return track, and main track fader to unity without changing Utility gain devices." onclick="confirmSetAllFadersToUnity()">Unity all faders</button>
+            <button class="remove-button" type="button" data-tooltip="Removes every supported Ableton FX device using the current Apply to choice." onclick="confirmRemoveAllAbletonFX()">Remove all Ableton FX</button>
+          </div>
+        </section>
       </section>
     </section>
     <section class="bottom-actions" aria-label="Window actions">

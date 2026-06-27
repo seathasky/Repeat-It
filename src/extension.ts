@@ -86,6 +86,8 @@ type RepeatItSelection = {
   trackScope?: TrackScope;
   shouldSkipGroupTracks?: boolean;
 } | {
+  action: "setAllFadersToUnity";
+} | {
   action: "close";
   insertPosition?: InsertPosition;
   trackScope?: TrackScope;
@@ -192,6 +194,9 @@ async function openRepeatIt(context: Context, launchContext: unknown) {
         getTargetTracks(context, launchContext, selectedTrackScope, shouldSkipGroupTracks),
         selectedTrackScope,
       );
+    } else if (selection.action === "setAllFadersToUnity") {
+      updateUserOptions(context, selection.userOptions);
+      await setAllTrackFadersToUnity(context, getAllMixerTracks(context));
     } else {
       updateUserOptions(context, selection.userOptions);
       selectedDevice = selection.deviceName;
@@ -442,6 +447,23 @@ function getTargetTracks(
   }
 
   return targetTracks.filter((track) => !isGroupTrack(track, allTracks));
+}
+
+function getAllMixerTracks(context: Context): SongTrack[] {
+  const allMixerTracks = [
+    ...context.application.song.tracks,
+    ...context.application.song.returnTracks,
+    context.application.song.mainTrack,
+  ];
+  const uniqueTracks: SongTrack[] = [];
+
+  for (const track of allMixerTracks) {
+    if (!uniqueTracks.some((uniqueTrack) => isSameObject(uniqueTrack, track))) {
+      uniqueTracks.push(track);
+    }
+  }
+
+  return uniqueTracks;
 }
 
 function isGroupTrack(track: SongTrack, tracks: SongTrack[]) {
@@ -709,6 +731,44 @@ async function deleteAllAbletonFX(
   );
 }
 
+async function setAllTrackFadersToUnity(context: Context, tracks: SongTrack[]) {
+  if (tracks.length === 0) {
+    console.warn("Repeat It had no track faders to set to unity.");
+    return;
+  }
+
+  await context.ui.withinProgressDialog(
+    "Setting all track faders to unity",
+    { progress: 0 },
+    async (update, signal) => {
+      let updated = 0;
+      const failures: string[] = [];
+
+      for (const [index, track] of tracks.entries()) {
+        signal.throwIfAborted();
+
+        try {
+          const volume = track.mixer.volume;
+          await volume.setValue(volume.defaultValue);
+          updated += 1;
+        } catch (error) {
+          failures.push(track.name);
+          console.error(`Repeat It could not set ${track.name} fader to unity.`, error);
+        }
+
+        const progress = Math.round(((index + 1) / tracks.length) * 100);
+        await update(`Set ${updated}/${tracks.length} faders to unity`, progress);
+      }
+
+      if (failures.length > 0) {
+        console.warn(
+          `Repeat It could not set ${failures.length} fader(s) to unity: ${failures.join(", ")}`,
+        );
+      }
+    },
+  );
+}
+
 function parseSelection(result: unknown): RepeatItSelection | null {
   try {
     const parsed = typeof result === "string"
@@ -749,6 +809,13 @@ function parseSelection(result: unknown): RepeatItSelection | null {
         insertPosition: parseInsertPosition(selection.insertPosition),
         trackScope: parseTrackScope(selection.trackScope),
         shouldSkipGroupTracks: parseShouldSkipGroupTracks(selection.shouldSkipGroupTracks),
+        userOptions: parsedUserOptions,
+      };
+    }
+
+    if (selection.action === "setAllFadersToUnity") {
+      return {
+        action: "setAllFadersToUnity",
         userOptions: parsedUserOptions,
       };
     }

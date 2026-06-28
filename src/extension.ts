@@ -111,8 +111,6 @@ export async function activate(activation: ActivationContext) {
   const scopes: ContextMenuScope<typeof API_VERSION>[] = [
     "AudioTrack",
     "MidiTrack",
-    "AudioTrack.ArrangementSelection",
-    "MidiTrack.ArrangementSelection",
   ];
   const registeredActions: Promise<() => Promise<void>>[] = [];
 

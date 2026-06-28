@@ -83,6 +83,8 @@ __REPEAT_IT_UPDATE_SCRIPT__
     let commonDeviceSlots = Array.isArray(USER_OPTIONS && USER_OPTIONS.commonDeviceSlots)
       ? USER_OPTIONS.commonDeviceSlots.slice(0, 11)
       : [...QUICK_DEVICES.slice(0, 8), null, null, null];
+    let draggedCommonSlotIndex = null;
+    let dragOverCommonSlotIndex = null;
     while (commonDeviceSlots.length < 11) {
       commonDeviceSlots.push(null);
     }
@@ -172,6 +174,92 @@ __REPEAT_IT_POPUP_SCRIPT__
       document.getElementById("confirm-panel").hidden = false;
     }
 
+    function clearCommonDeviceDragState() {
+      draggedCommonSlotIndex = null;
+      dragOverCommonSlotIndex = null;
+      syncCommonDeviceDragFeedback();
+    }
+
+    function syncCommonDeviceDragFeedback() {
+      for (const slot of document.querySelectorAll(".common-slot")) {
+        const slotIndex = Number.parseInt(slot.dataset.slotIndex, 10);
+        const isDragSource = draggedCommonSlotIndex === slotIndex;
+        const isDropTarget = dragOverCommonSlotIndex === slotIndex && draggedCommonSlotIndex !== null && draggedCommonSlotIndex !== slotIndex;
+        slot.classList.toggle("drag-source", isDragSource);
+        slot.classList.toggle("drop-target", isDropTarget);
+      }
+    }
+
+    function beginCommonDeviceDrag(slotIndex, event) {
+      if (!commonDeviceSlots[slotIndex]) {
+        return;
+      }
+
+      draggedCommonSlotIndex = slotIndex;
+      dragOverCommonSlotIndex = slotIndex;
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", String(slotIndex));
+      event.dataTransfer.setData("application/x-repeat-it-slot-index", String(slotIndex));
+      syncCommonDeviceDragFeedback();
+    }
+
+    function handleCommonSlotDragOver(slotIndex, event) {
+      if (draggedCommonSlotIndex === null || draggedCommonSlotIndex === slotIndex) {
+        return;
+      }
+
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+
+      if (dragOverCommonSlotIndex !== slotIndex) {
+        dragOverCommonSlotIndex = slotIndex;
+        syncCommonDeviceDragFeedback();
+      }
+    }
+
+    function handleCommonSlotDragLeave(slotIndex, event) {
+      const relatedTarget = event.relatedTarget;
+
+      if (relatedTarget instanceof Node && event.currentTarget.contains(relatedTarget)) {
+        return;
+      }
+
+      if (dragOverCommonSlotIndex === slotIndex) {
+        dragOverCommonSlotIndex = null;
+        syncCommonDeviceDragFeedback();
+      }
+    }
+
+    function handleCommonSlotDrop(slotIndex, event) {
+      event.preventDefault();
+
+      const draggedIndexText = event.dataTransfer.getData("application/x-repeat-it-slot-index") ||
+        event.dataTransfer.getData("text/plain");
+      const draggedIndex = Number.parseInt(draggedIndexText, 10);
+
+      if (!Number.isInteger(draggedIndex) || draggedIndex === slotIndex) {
+        clearCommonDeviceDragState();
+        return;
+      }
+
+      const draggedDevice = commonDeviceSlots[draggedIndex];
+      if (!draggedDevice) {
+        clearCommonDeviceDragState();
+        return;
+      }
+
+      const targetDevice = commonDeviceSlots[slotIndex];
+      commonDeviceSlots[slotIndex] = draggedDevice;
+      commonDeviceSlots[draggedIndex] = targetDevice || null;
+      selectedDevice = draggedDevice;
+      renderCommonDeviceSlots();
+      clearCommonDeviceDragState();
+    }
+
+    function handleCommonSlotDragEnd() {
+      clearCommonDeviceDragState();
+    }
+
     function confirmSelectedDevice(action) {
       if (selectedDevice) {
         confirmAction(action, selectedDevice);
@@ -232,11 +320,17 @@ __REPEAT_IT_POPUP_SCRIPT__
       for (const [slotIndex, deviceName] of commonDeviceSlots.entries()) {
         const slot = document.createElement("div");
         slot.className = "common-slot";
+        slot.dataset.slotIndex = String(slotIndex);
+        slot.addEventListener("dragover", (event) => handleCommonSlotDragOver(slotIndex, event));
+        slot.addEventListener("dragenter", (event) => handleCommonSlotDragOver(slotIndex, event));
+        slot.addEventListener("dragleave", (event) => handleCommonSlotDragLeave(slotIndex, event));
+        slot.addEventListener("drop", (event) => handleCommonSlotDrop(slotIndex, event));
 
         if (deviceName) {
           const button = document.createElement("button");
           button.className = "device-button";
           button.type = "button";
+          button.draggable = true;
           button.dataset.deviceName = deviceName;
           if (CONFIGURABLE_DEVICES.has(deviceName)) {
             button.classList.add("configurable-device");
@@ -257,6 +351,8 @@ __REPEAT_IT_POPUP_SCRIPT__
 
           button.setAttribute("aria-pressed", "false");
           button.addEventListener("click", () => selectDevice(deviceName));
+          button.addEventListener("dragstart", (event) => beginCommonDeviceDrag(slotIndex, event));
+          button.addEventListener("dragend", handleCommonSlotDragEnd);
 
           const removeButton = document.createElement("button");
           removeButton.className = "common-remove-button";
@@ -280,6 +376,7 @@ __REPEAT_IT_POPUP_SCRIPT__
       }
 
       syncSelectedDeviceControls();
+      syncCommonDeviceDragFeedback();
     }
 
     function showCommonDevicePicker(slotIndex) {

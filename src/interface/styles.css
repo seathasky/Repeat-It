@@ -588,6 +588,22 @@
 
     .common-slot .device-button {
       min-width: 0;
+      cursor: grab;
+    }
+
+    .common-slot .device-button:active {
+      cursor: grabbing;
+    }
+
+    .common-slot.drag-source .device-button {
+      opacity: 0.72;
+    }
+
+    .common-slot.drop-target .device-button,
+    .common-slot.drop-target .common-picker,
+    .common-slot.drop-target .add-slot-button {
+      border-color: var(--repeat-teal);
+      box-shadow: inset 0 0 0 1px var(--repeat-teal);
     }
 
     .common-remove-button {

@@ -19,9 +19,9 @@ All included devices are Ableton audio effects/tools.
 
 ## Options
 
-- Dark mode and tooltips are enabled by default.
+- Dark mode and tooltips are enabled by default. You can change the GUI theme in settings to suit your style.
 - Options and custom common slots are saved between Ableton restarts.
-- Update checks run once per Ableton session and only show text when an update is available.
+- Update checks run once per Ableton session and only show text when an update is available. 
 
 ## Setup
 

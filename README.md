@@ -1,6 +1,6 @@
 # Repeat It
 
-An Ableton Live Extension for adding or removing Ableton audio effects across tracks.
+An Ableton Live extension for adding or removing audio effects across selected tracks or all tracks.
 
 <img src="https://i.imgur.com/LAVlVig.png" alt="Repeat It" width="406">
 
